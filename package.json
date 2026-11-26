@@ -1,6 +1,6 @@
 {
   "name": "draft100-nba",
-  "version": "1.6.0",
+  "version": "1.6.1",
   "description": "Draft 100 — leilão de jogadores da NBA multiplayer",
   "main": "server.js",
   "updateRepo": "GRichters/NBA_DRAFT-versoes",
