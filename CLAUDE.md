@@ -10,7 +10,7 @@ Todo texto visível ao usuário é em **português do Brasil**. O dono do projet
 - `DATA_DIR=/tmp/x` grava histórico/config fora de `Documentos\Draft100`.
 - `DRAFT100_DEBUG=1` liga eventos de teste no socket: `debugClutch` (leva o seu jogo aos 30 s finais empatado; `{defend:true}` para defender) e `debugSkip82` (termina a temporada regular do 82-0).
 - O cliente expõe `window.__d100 = { emit, state, me }` para testes automatizados (Playwright).
-- `npm test` (node:test, pasta `test/`, ~3 s): partidas completas só com bots em todos os formatos/listas (`Room` com `io` falso e `Date.now` controlado, ver `test/helpers.js`), assinatura/atualização (com um GitHub falso) e descoberta UDP. Rode antes de toda entrega; mudanças de equilíbrio ainda pedem milhares de jogos simulados e Playwright no navegador.
+- `npm test` (node:test, `test/*.test.js` — no Node 22 a pasta sozinha não funciona, ~3 s): partidas completas só com bots em todos os formatos/listas (`Room` com `io` falso e `Date.now` controlado, ver `test/helpers.js`), assinatura/atualização (com um GitHub falso) e descoberta UDP. Rode antes de toda entrega; mudanças de equilíbrio ainda pedem milhares de jogos simulados e Playwright no navegador.
 - Opções do .exe: `--trocar-modo`, `--auto-iniciar` (liga/desliga o atalho na pasta Inicializar do Windows) e `--sem-navegador` (não abre o navegador; usado ao iniciar com o Windows e ao reabrir após atualizar). Variáveis de teste: `DRAFT100_PORTABLE`, `DRAFT100_NO_BROWSER`, `DRAFT100_NO_FIREWALL`, `DRAFT100_UPDATE_REPO`, `DRAFT100_UPDATE_API`, `DRAFT100_UPDATE_TEST`.
 
 ## Estrutura

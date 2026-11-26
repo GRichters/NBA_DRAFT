@@ -6,7 +6,7 @@
   "updateRepo": "GRichters/NBA_DRAFT-versoes",
   "scripts": {
     "start": "node server.js",
-    "test": "node --test test/"
+    "test": "node --test test/*.test.js"
   },
   "license": "MIT",
   "dependencies": {
