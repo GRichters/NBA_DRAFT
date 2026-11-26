@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>Draft 100 — Leilão NBA</title>
+  <meta name="description" content="Leilão de jogadores da NBA com os amigos: US$ 100 milhões para cada técnico, monte o elenco e dispute a temporada." />
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🏀</text></svg>" />
+  <link rel="stylesheet" href="fonts.css" />
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div id="app">
+    <header id="topbar" class="hidden"></header>
+    <main id="screen"></main>
+  </div>
+
+  <aside id="chat" class="hidden">
+    <button id="chatToggle" class="chat-toggle" type="button">💬 Chat <span id="chatBadge" class="badge hidden">0</span></button>
+    <div class="chat-panel">
+      <div id="chatLog" class="chat-log"></div>
+      <form id="chatForm" class="chat-form" autocomplete="off">
+        <input id="chatInput" maxlength="200" placeholder="Mensagem…" />
+        <button type="submit">Enviar</button>
+      </form>
+    </div>
+  </aside>
+
+  <div id="toast" class="toast"></div>
+
+  <script src="/vendor/socket.io.min.js"></script>
+  <script src="data.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

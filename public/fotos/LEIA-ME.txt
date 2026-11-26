@@ -1,0 +1,4 @@
+As fotos dos jogadores agora ficam em Documentos\Draft100\fotos
+(essa pasta é criada na primeira vez que o jogo abre e não é apagada nas atualizações).
+
+Esta pasta aqui ainda funciona quando o jogo roda pelo iniciar.bat, mas não vale para o Draft100.exe.

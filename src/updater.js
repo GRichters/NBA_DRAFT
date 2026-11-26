@@ -1,0 +1,112 @@
+// Atualização automática do .exe dos amigos a partir do PC do anfitrião.
+// O build assina o .exe (chave privada que só o dono tem) e grava a assinatura no fim do arquivo:
+//   [exe][versão, 16 bytes][assinatura ed25519, 64 bytes]["D100SIG1"]
+// O PC do amigo só troca o próprio .exe se a assinatura bater com a chave pública embutida.
+const fs = require('fs');
+const http = require('http');
+const crypto = require('crypto');
+const PUBLIC_KEY = require('./update-key');
+
+const MAGIC = Buffer.from('D100SIG1');
+const TRAILER = 16 + 64 + MAGIC.length;
+
+function cmpVersion(a, b) {
+  const pa = String(a).split('.').map(Number);
+  const pb = String(b).split('.').map(Number);
+  for (let i = 0; i < 3; i++) if ((pa[i] || 0) !== (pb[i] || 0)) return (pa[i] || 0) - (pb[i] || 0);
+  return 0;
+}
+
+// versão assinada contida no arquivo, ou null se não estiver assinado/for inválido
+function signedVersion(buf) {
+  if (!buf || buf.length <= TRAILER || !buf.subarray(-MAGIC.length).equals(MAGIC)) return null;
+  const ver = buf.subarray(-TRAILER, -TRAILER + 16);
+  const sig = buf.subarray(-TRAILER + 16, -MAGIC.length);
+  const body = buf.subarray(0, -TRAILER);
+  try {
+    if (!crypto.verify(null, Buffer.concat([body, ver]), PUBLIC_KEY, sig)) return null;
+  } catch (e) { return null; }
+  return ver.toString('utf8').replace(/\0+$/, '');
+}
+
+// o próprio .exe tem assinatura no fim? (só olha o final, sem ler os 85 MB)
+function selfIsSigned() {
+  try {
+    const fd = fs.openSync(process.execPath, 'r');
+    const size = fs.fstatSync(fd).size;
+    const tail = Buffer.alloc(MAGIC.length);
+    fs.readSync(fd, tail, 0, MAGIC.length, size - MAGIC.length);
+    fs.closeSync(fd);
+    return tail.equals(MAGIC);
+  } catch (e) { return false; }
+}
+
+function sign(body, version, privateKeyPem) {
+  const ver = Buffer.alloc(16);
+  ver.write(version, 'utf8');
+  const sig = crypto.sign(null, Buffer.concat([body, ver]), crypto.createPrivateKey(privateKeyPem));
+  return Buffer.concat([body, ver, sig, MAGIC]);
+}
+
+function download(url) {
+  return new Promise((resolve, reject) => {
+    const req = http.get(url, (res) => {
+      if (res.statusCode !== 200) { res.resume(); return reject(new Error(`HTTP ${res.statusCode}`)); }
+      const total = Number(res.headers['content-length']) || 0;
+      const parts = [];
+      let got = 0;
+      let shown = -1;
+      res.on('data', (c) => {
+        parts.push(c);
+        got += c.length;
+        const pct = total ? Math.floor((got / total) * 10) * 10 : -1;
+        if (pct > shown) { shown = pct; process.stdout.write(`\r   Baixando atualização... ${pct >= 0 ? pct + '%' : Math.round(got / 1048576) + ' MB'}   `); }
+      });
+      res.on('end', () => { process.stdout.write('\n'); resolve(Buffer.concat(parts)); });
+      res.on('error', reject);
+    });
+    req.setTimeout(30000, () => req.destroy(new Error('sem resposta do anfitrião')));
+    req.on('error', reject);
+  });
+}
+
+// troca o .exe em uso: no Windows dá para renomear um .exe aberto, mas não sobrescrever
+function replaceSelf(buf) {
+  const target = process.execPath;
+  const old = target + '.antigo';
+  try { fs.rmSync(old, { force: true }); } catch (e) { /* pode estar em uso */ }
+  fs.renameSync(target, old);
+  try {
+    fs.writeFileSync(target, buf, { mode: 0o755 });
+  } catch (e) {
+    fs.renameSync(old, target); // desfaz
+    throw e;
+  }
+}
+
+function cleanupOld() {
+  try { fs.rmSync(process.execPath + '.antigo', { force: true }); } catch (e) { /* ainda em uso: fica para a próxima */ }
+}
+
+// devolve a versão instalada se atualizou, senão null
+async function updateFromHost(host, myVersion, versionFile) {
+  if (!host.exe || cmpVersion(host.v, myVersion) <= 0) return null;
+  console.log(`   O anfitrião está com a versão ${host.v} (este PC: ${myVersion}). Atualizando...`);
+  try {
+    const buf = await download(`http://${host.address}:${host.port}/api/exe`);
+    const v = signedVersion(buf);
+    if (!v || cmpVersion(v, myVersion) <= 0) {
+      console.log('   A atualização não tem a assinatura oficial do Draft 100. Ignorada por segurança.\n');
+      return null;
+    }
+    replaceSelf(buf);
+    if (versionFile) { try { fs.writeFileSync(versionFile, v); } catch (e) { /* ok */ } }
+    console.log(`   ✓ Atualizado para a versão ${v}.\n`);
+    return v;
+  } catch (e) {
+    console.log(`   Não deu para atualizar agora (${e.message}). Segue na versão atual.\n`);
+    return null;
+  }
+}
+
+module.exports = { cmpVersion, signedVersion, selfIsSigned, sign, updateFromHost, cleanupOld, MAGIC, TRAILER };

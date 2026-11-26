@@ -1,0 +1,7 @@
+node_modules/
+dist/
+data/
+build/node_modules/
+build/.cache/
+build/.tmp/
+build/chave-atualizacao.pem
