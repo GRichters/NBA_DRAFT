@@ -16,7 +16,8 @@ const { execFileSync } = require('child_process');
 const ROOT = path.join(__dirname, '..');
 const PKG = path.join(ROOT, 'package.json');
 const isWin = process.platform === 'win32';
-const run = (cmd, args, opts = {}) => execFileSync(cmd, args, { cwd: ROOT, stdio: 'inherit', shell: isWin, ...opts });
+// só o npm precisa do shell no Windows (npm.cmd); o git roda direto, assim mensagens com espaço não se quebram
+const run = (cmd, args, opts = {}) => execFileSync(cmd, args, { cwd: ROOT, stdio: 'inherit', shell: isWin && cmd === 'npm', ...opts });
 const out = (cmd, args) => execFileSync(cmd, args, { cwd: ROOT, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }).trim();
 const fail = (msg) => { console.error(`\n✗ ${msg}\n`); process.exit(1); };
 
