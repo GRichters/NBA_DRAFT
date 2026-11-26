@@ -2,7 +2,9 @@
 //  - na primeira vez (ou ao abrir um .exe novo baixado) se instala em %LOCALAPPDATA%\Draft100,
 //    cria os atalhos na Área de Trabalho e no Menu Iniciar e reabre a cópia instalada;
 //  - abre o navegador sozinho quando o servidor sobe;
-//  - se o jogo já estiver aberto, só abre o navegador.
+//  - se o jogo já estiver aberto, só abre o navegador;
+//  - libera o jogo no Firewall do Windows (uma vez, com a permissão do usuário);
+//  - no anfitrião: pode iniciar junto com o Windows e se atualiza sozinho pelo GitHub.
 const fs = require('fs');
 const path = require('path');
 const { spawn, execFileSync } = require('child_process');
@@ -15,6 +17,11 @@ try { isSea = require('node:sea').isSea(); } catch (e) { /* node sem SEA */ }
 const INSTALL_DIR = path.join(process.env.LOCALAPPDATA || path.join(require('os').homedir(), 'AppData', 'Local'), 'Draft100');
 const INSTALLED_EXE = path.join(INSTALL_DIR, 'Draft100.exe');
 
+// abrir sem navegador: usado ao iniciar com o Windows e ao reabrir depois de uma atualização
+const NO_BROWSER_ARG = '--sem-navegador';
+const AUTOSTART_ARG = '--auto-iniciar';
+const quietStart = () => process.argv.includes(NO_BROWSER_ARG);
+
 const sleep = (ms) => Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, ms);
 
 function waitAndExit(code, ms) {
@@ -26,6 +33,12 @@ function openBrowser(url) {
   try {
     spawn('cmd.exe', ['/c', 'start', '', url], { detached: true, stdio: 'ignore', windowsHide: true }).unref();
   } catch (e) { /* abre manualmente */ }
+}
+
+const psQuote = (s) => String(s).replace(/'/g, "''");
+function runPowerShell(script, timeout = 20000) {
+  return execFileSync('powershell.exe', ['-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass', '-Command', script],
+    { timeout, windowsHide: true, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] });
 }
 
 function makeShortcuts() {
@@ -46,6 +59,13 @@ $l.TargetPath = '${INSTALLED_EXE.replace(/'/g, "''")}'
 $l.Arguments = '--trocar-modo'
 $l.WorkingDirectory = '${INSTALL_DIR.replace(/'/g, "''")}'
 $l.Description = 'Escolher de novo: anfitriao ou amigo'
+$l.IconLocation = '${INSTALLED_EXE.replace(/'/g, "''")},0'
+$l.Save()
+$l = $s.CreateShortcut((Join-Path ([Environment]::GetFolderPath('Programs')) 'Draft 100 - iniciar com o Windows.lnk'))
+$l.TargetPath = '${INSTALLED_EXE.replace(/'/g, "''")}'
+$l.Arguments = '${AUTOSTART_ARG}'
+$l.WorkingDirectory = '${INSTALL_DIR.replace(/'/g, "''")}'
+$l.Description = 'Liga ou desliga o servidor do Draft 100 junto com o Windows'
 $l.IconLocation = '${INSTALLED_EXE.replace(/'/g, "''")},0'
 $l.Save()`;
   try {
@@ -116,8 +136,88 @@ function installIfNeeded() {
   return false;
 }
 
+// reabre o jogo numa janela nova (depois de uma atualização) e fecha esta
+function relaunch(extraArgs = []) {
+  // só as opções "--alguma-coisa" (no .exe, argv[1] também é o caminho do próprio .exe)
+  const flags = process.argv.slice(1).filter((a) => a.startsWith('--') && a !== '--trocar-modo' && a !== AUTOSTART_ARG);
+  const args = [...new Set([...flags, ...extraArgs])];
+  if (!isWin) {
+    spawn(process.execPath, isSea ? args : [process.argv[1], ...args], { detached: true, stdio: 'inherit' }).unref();
+    return waitAndExit(0, 200);
+  }
+  // espera ~2 s (para esta janela soltar a porta) e abre a cópia nova numa janela minimizada
+  const cmd = `ping -n 3 127.0.0.1 >nul & start "Draft 100" /min /d "${path.dirname(process.execPath)}" "${process.execPath}" ${args.join(' ')}`;
+  spawn('cmd.exe', ['/c', cmd], { detached: true, stdio: 'ignore', windowsHide: true, windowsVerbatimArguments: true }).unref();
+  waitAndExit(0, 300);
+}
+
+// ---------- iniciar junto com o Windows (só faz sentido no anfitrião) ----------
+function startupShortcut() {
+  try { return path.join(runPowerShell("[Environment]::GetFolderPath('Startup')").trim(), 'Draft 100 (servidor).lnk'); } catch (e) { return null; }
+}
+function autostartEnabled() { const f = startupShortcut(); return !!f && fs.existsSync(f); }
+function setAutostart(on) {
+  const f = startupShortcut();
+  if (!f) return false;
+  try {
+    if (!on) { fs.rmSync(f, { force: true }); return true; }
+    runPowerShell([
+      `$l = (New-Object -ComObject WScript.Shell).CreateShortcut('${psQuote(f)}')`,
+      `$l.TargetPath = '${psQuote(INSTALLED_EXE)}'`,
+      `$l.Arguments = '${NO_BROWSER_ARG}'`,
+      `$l.WorkingDirectory = '${psQuote(INSTALL_DIR)}'`,
+      '$l.WindowStyle = 7', // minimizado
+      "$l.Description = 'Servidor do Draft 100'",
+      `$l.IconLocation = '${psQuote(INSTALLED_EXE)},0'`,
+      '$l.Save()',
+    ].join('\n'));
+    return true;
+  } catch (e) { return false; }
+}
+// atalho "Draft 100 - iniciar com o Windows" no Menu Iniciar: liga/desliga
+function toggleAutostart() {
+  const on = !autostartEnabled();
+  const ok = setAutostart(on);
+  if (!ok) console.log('\n   Não consegui mudar a inicialização automática.\n');
+  else if (on) console.log('\n   ✓ Ligado: o servidor do Draft 100 abre sozinho (minimizado) quando o Windows iniciar.\n');
+  else console.log('\n   ✓ Desligado: o Draft 100 não abre mais sozinho com o Windows.\n');
+  waitAndExit(0, 6000);
+}
+
+// ---------- Firewall do Windows ----------
+// A janela padrão do Windows só libera "redes privadas", e o Radmin costuma ser tratado como "pública".
+// Por isso criamos uma regra para o Draft100.exe instalado valendo em todas as redes (pede permissão uma vez).
+const FIREWALL_RULE = 'Draft 100';
+function firewallRuleExists() {
+  try {
+    execFileSync('netsh.exe', ['advfirewall', 'firewall', 'show', 'rule', `name=${FIREWALL_RULE}`], { stdio: 'ignore', windowsHide: true, timeout: 10000 });
+    return true;
+  } catch (e) { return false; }
+}
+function ensureFirewall(cfg) {
+  if (!isWin || !isSea || process.env.DRAFT100_NO_FIREWALL) return;
+  if (path.resolve(process.execPath).toLowerCase() !== INSTALLED_EXE.toLowerCase()) return;
+  if (firewallRuleExists()) return;
+  if (cfg.firewallRecusado === VERSION) return; // já perguntamos nesta versão e a pessoa disse não
+  console.log('   Liberando o Draft 100 no Firewall do Windows (para os amigos conseguirem entrar)...');
+  console.log('   O Windows vai pedir permissão: clique em SIM.\n');
+  const rule = `advfirewall firewall add rule name="${FIREWALL_RULE}" dir=in action=allow program="${INSTALLED_EXE}" enable=yes profile=any`;
+  try {
+    runPowerShell(`Start-Process -FilePath netsh.exe -ArgumentList '${psQuote(rule)}' -Verb RunAs -WindowStyle Hidden -Wait`, 120000);
+  } catch (e) { /* recusou o pedido de permissão */ }
+  if (firewallRuleExists()) {
+    console.log('   ✓ Firewall liberado em todas as redes (inclusive Radmin).\n');
+    delete cfg.firewallRecusado;
+  } else {
+    cfg.firewallRecusado = VERSION;
+    console.log('   Sem a permissão: quando o Windows perguntar sobre o Firewall, marque redes PRIVADAS e PÚBLICAS.\n');
+  }
+  saveConfig(cfg);
+}
+
 function onPortBusy(port) {
   console.log(`\n   O Draft 100 já está aberto neste computador (porta ${port} em uso).`);
+  if (quietStart()) return waitAndExit(0, 0);
   console.log('   Abrindo o navegador no jogo que já está rodando...\n');
   openBrowser(`http://localhost:${port}`);
   waitAndExit(0, isWin ? 6000 : 0);
@@ -174,10 +274,15 @@ function askMode(current) {
     const ask = () => rl.question('   Digite 1 ou 2 e aperte Enter: ', (a) => {
       const v = String(a).trim();
       if (v !== '1' && v !== '2') return ask();
-      rl.close();
       const modo = v === '1' ? 'anfitriao' : 'amigo';
       console.log(`\n   Certo: ${modo === 'anfitriao' ? 'ANFITRIÃO' : 'AMIGO'}. Para mudar depois, use "Draft 100 - trocar modo" no Menu Iniciar.\n`);
-      resolve(modo);
+      if (modo !== 'anfitriao' || !isWin || !isSea) { rl.close(); return resolve(modo); }
+      rl.question('   Abrir o servidor sozinho (minimizado) toda vez que o Windows ligar? [S/N]: ', (b) => {
+        rl.close();
+        const on = /^s/i.test(String(b).trim());
+        if (setAutostart(on) && on) console.log('   ✓ Combinado. Para desligar: "Draft 100 - iniciar com o Windows" no Menu Iniciar.\n');
+        resolve(modo);
+      });
     });
     ask();
   });
@@ -213,10 +318,7 @@ async function friendLoop(cfg, port) {
       const url = D.hostUrl(h);
       const waiting = (h.salas || []).filter((r) => r.fase === 'lobby');
       console.log(`   ✓ Achei o jogo de ${h.pc} (${h.address}) — versão ${h.v}`);
-      if ((isWin && isSea) || process.env.DRAFT100_UPDATE_TEST) {
-        const vf = path.resolve(process.execPath).toLowerCase() === INSTALLED_EXE.toLowerCase() ? path.join(INSTALL_DIR, 'versao.txt') : null;
-        await require('./updater').updateFromHost(h, VERSION, vf);
-      }
+      if (canSelfUpdate()) await require('./updater').updateFromHost(h, VERSION, installedVersionFile());
       console.log(waiting.length === 1 ? `   Entrando na sala ${waiting[0].codigo} de ${waiting[0].lider}...` : '   Abrindo o jogo no navegador...');
       console.log(`\n   Link: ${url}`);
       console.log('\n   O jogo agora é no navegador. Pode fechar esta janela.\n');
@@ -236,8 +338,10 @@ async function friendLoop(cfg, port) {
 }
 
 // 'host' = sobe o servidor aqui · 'joined' = abriu o jogo de outro PC · 'busy' = já estava aberto aqui
+// 'restart' = trocou o .exe por uma versão nova e está reabrindo
 async function decideRole(port) {
   if (isSea) require('./updater').cleanupOld();
+  if (process.argv.includes(AUTOSTART_ARG)) { toggleAutostart(); return 'busy'; }
   if (await localRunning(port)) { onPortBusy(port); return 'busy'; }
   if (!discoveryOn()) return 'host';
   const cfg = loadConfig();
@@ -245,8 +349,25 @@ async function decideRole(port) {
     cfg.modo = await askMode(cfg.modo);
     saveConfig(cfg);
   }
-  if (cfg.modo === 'anfitriao') return 'host';
+  ensureFirewall(cfg);
+  if (cfg.modo === 'anfitriao') {
+    // o anfitrião confere se há versão nova publicada antes de subir o servidor
+    if (await updateHostNow()) { relaunch(); return 'restart'; }
+    return 'host';
+  }
   return friendLoop(cfg, port);
 }
 
-module.exports = { decideRole, discoveryOn, VERSION, isSea, isWin, INSTALL_DIR, installIfNeeded, openBrowser, onPortBusy, keepOpenOnCrash, markStarted };
+const installedVersionFile = () => (path.resolve(process.execPath).toLowerCase() === INSTALLED_EXE.toLowerCase() ? path.join(INSTALL_DIR, 'versao.txt') : null);
+const canSelfUpdate = () => (isWin && isSea) || !!process.env.DRAFT100_UPDATE_TEST;
+
+// true se trocou o .exe por uma versão nova (aí é preciso reabrir)
+async function updateHostNow(opts) {
+  if (!canSelfUpdate()) return false;
+  return !!(await require('./updater').updateFromGithub(VERSION, installedVersionFile(), opts));
+}
+
+module.exports = {
+  decideRole, discoveryOn, VERSION, isSea, isWin, INSTALL_DIR, installIfNeeded, openBrowser, onPortBusy, keepOpenOnCrash, markStarted,
+  quietStart, relaunch, updateHostNow,
+};

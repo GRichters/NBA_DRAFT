@@ -2,6 +2,8 @@
 // O build assina o .exe (chave privada que só o dono tem) e grava a assinatura no fim do arquivo:
 //   [exe][versão, 16 bytes][assinatura ed25519, 64 bytes]["D100SIG1"]
 // O PC do amigo só troca o próprio .exe se a assinatura bater com a chave pública embutida.
+// O PC do anfitrião se atualiza do mesmo jeito, mas buscando a versão publicada no GitHub
+// (campo "updateRepo" do package.json); a assinatura é conferida igual.
 const fs = require('fs');
 const http = require('http');
 const crypto = require('crypto');
@@ -11,20 +13,21 @@ const MAGIC = Buffer.from('D100SIG1');
 const TRAILER = 16 + 64 + MAGIC.length;
 
 function cmpVersion(a, b) {
-  const pa = String(a).split('.').map(Number);
-  const pb = String(b).split('.').map(Number);
+  const parse = (v) => String(v).replace(/^v/i, '').split('.').map((n) => parseInt(n, 10) || 0);
+  const pa = parse(a);
+  const pb = parse(b);
   for (let i = 0; i < 3; i++) if ((pa[i] || 0) !== (pb[i] || 0)) return (pa[i] || 0) - (pb[i] || 0);
   return 0;
 }
 
 // versão assinada contida no arquivo, ou null se não estiver assinado/for inválido
-function signedVersion(buf) {
+function signedVersion(buf, publicKey = PUBLIC_KEY) {
   if (!buf || buf.length <= TRAILER || !buf.subarray(-MAGIC.length).equals(MAGIC)) return null;
   const ver = buf.subarray(-TRAILER, -TRAILER + 16);
   const sig = buf.subarray(-TRAILER + 16, -MAGIC.length);
   const body = buf.subarray(0, -TRAILER);
   try {
-    if (!crypto.verify(null, Buffer.concat([body, ver]), PUBLIC_KEY, sig)) return null;
+    if (!crypto.verify(null, Buffer.concat([body, ver]), publicKey, sig)) return null;
   } catch (e) { return null; }
   return ver.toString('utf8').replace(/\0+$/, '');
 }
@@ -84,6 +87,66 @@ function replaceSelf(buf) {
   }
 }
 
+// ---------- atualização do anfitrião pelo GitHub ----------
+const GITHUB_API = process.env.DRAFT100_UPDATE_API || 'https://api.github.com';
+const ASSET_NAME = 'Draft100.exe';
+
+// repositório "dono/nome" onde as versões são publicadas (vazio = desligado)
+function updateRepo() {
+  if (process.env.DRAFT100_UPDATE_REPO !== undefined) return process.env.DRAFT100_UPDATE_REPO.trim();
+  try { return String(require('../package.json').updateRepo || '').trim(); } catch (e) { return ''; }
+}
+
+async function fetchWithTimeout(url, ms, opts = {}) {
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), ms);
+  try {
+    return await fetch(url, { ...opts, signal: ctrl.signal, headers: { 'User-Agent': 'Draft100-atualizador', ...(opts.headers || {}) } });
+  } finally { clearTimeout(timer); }
+}
+
+// pergunta ao GitHub qual é a última versão publicada; devolve { version, url } ou null
+async function latestRelease(repo = updateRepo()) {
+  if (!repo || !/^[\w.-]+\/[\w.-]+$/.test(repo)) return null;
+  const res = await fetchWithTimeout(`${GITHUB_API}/repos/${repo}/releases/latest`, 8000, { headers: { Accept: 'application/vnd.github+json' } });
+  if (!res.ok) throw new Error(`GitHub respondeu ${res.status}`);
+  const rel = await res.json();
+  const asset = (rel.assets || []).find((a) => a.name === ASSET_NAME);
+  if (!asset || !rel.tag_name) return null;
+  return { version: String(rel.tag_name).replace(/^v/i, ''), url: asset.browser_download_url };
+}
+
+// baixa e confere a versão nova; devolve o arquivo pronto (ainda não instalado) ou null
+async function downloadRelease(rel, myVersion, publicKey = PUBLIC_KEY) {
+  if (!rel || cmpVersion(rel.version, myVersion) <= 0) return null;
+  const res = await fetchWithTimeout(rel.url, 10 * 60 * 1000);
+  if (!res.ok) throw new Error(`download respondeu ${res.status}`);
+  const buf = Buffer.from(await res.arrayBuffer());
+  const v = signedVersion(buf, publicKey);
+  if (!v || cmpVersion(v, myVersion) <= 0) throw new Error('o arquivo publicado não tem a assinatura oficial do Draft 100');
+  return { version: v, buf };
+}
+
+// usado pelo anfitrião: confere o GitHub e troca o próprio .exe se houver versão nova.
+// devolve a versão instalada ou null (sem internet, sem versão nova, desligado...)
+async function updateFromGithub(myVersion, versionFile, { quiet = false } = {}) {
+  const repo = updateRepo();
+  if (!repo) return null;
+  try {
+    const rel = await latestRelease(repo);
+    if (!rel || cmpVersion(rel.version, myVersion) <= 0) return null;
+    console.log(`   Versão nova publicada: ${rel.version} (este PC: ${myVersion}). Baixando...`);
+    const got = await downloadRelease(rel, myVersion);
+    replaceSelf(got.buf);
+    if (versionFile) { try { fs.writeFileSync(versionFile, got.version); } catch (e) { /* ok */ } }
+    console.log(`   ✓ Atualizado para a versão ${got.version}.\n`);
+    return got.version;
+  } catch (e) {
+    if (!quiet) console.log(`   (Não deu para procurar atualização agora: ${e.message}. Segue na versão atual.)\n`);
+    return null;
+  }
+}
+
 function cleanupOld() {
   try { fs.rmSync(process.execPath + '.antigo', { force: true }); } catch (e) { /* ainda em uso: fica para a próxima */ }
 }
@@ -109,4 +172,7 @@ async function updateFromHost(host, myVersion, versionFile) {
   }
 }
 
-module.exports = { cmpVersion, signedVersion, selfIsSigned, sign, updateFromHost, cleanupOld, MAGIC, TRAILER };
+module.exports = {
+  cmpVersion, signedVersion, selfIsSigned, sign, updateFromHost, cleanupOld, MAGIC, TRAILER,
+  updateRepo, latestRelease, downloadRelease, updateFromGithub,
+};

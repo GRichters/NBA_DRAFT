@@ -100,6 +100,8 @@ function startServer() {
   const cleanToken = (t) => String(t || '').slice(0, 64);
 
   io.on('connection', (socket) => {
+    // o navegador compara com a versão que carregou: se o anfitrião atualizou, ele recarrega sozinho
+    socket.emit('hello', { v: launcher.VERSION });
     let room = null;
     let myId = null;
 
@@ -221,6 +223,24 @@ function startServer() {
     console.log(`\n   Histórico e fotos ficam em: ${paths.DATA_DIR}`);
     console.log('   (Atualizar ou apagar o jogo não mexe nessa pasta.)');
     console.log('\n   Deixe esta janela aberta enquanto jogam. Fechar a janela encerra o jogo.\n');
-    launcher.openBrowser(`http://localhost:${PORT}`);
+    if (!launcher.quietStart()) launcher.openBrowser(`http://localhost:${PORT}`);
   });
+
+  // servidor ligado o tempo todo: de tempos em tempos confere se saiu versão nova no GitHub.
+  // Só troca quando ninguém está numa sala, para nunca derrubar uma partida.
+  const UPDATE_EVERY_MS = 30 * 60 * 1000;
+  const someonePlaying = () => [...rooms.values()].some((r) => r.humans().some((m) => m.connected));
+  let updating = false;
+  setInterval(async () => {
+    if (updating || someonePlaying()) return;
+    updating = true;
+    try {
+      if (await launcher.updateHostNow({ quiet: true }) && !someonePlaying()) {
+        console.log('   Reabrindo o Draft 100 na versão nova...');
+        io.close();
+        server.close();
+        launcher.relaunch(['--sem-navegador']);
+      }
+    } finally { updating = false; }
+  }, UPDATE_EVERY_MS).unref();
 }

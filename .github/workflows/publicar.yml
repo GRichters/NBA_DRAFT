@@ -1,0 +1,69 @@
+# Gera, assina e publica o Draft100.exe sempre que uma versão nova (tag v1.2.3) é enviada.
+# O PC do anfitrião baixa essa versão sozinho; os PCs dos amigos baixam do anfitrião.
+#
+# Precisa de UM segredo no repositório (Settings → Secrets and variables → Actions → New repository secret):
+#   CHAVE_ATUALIZACAO = conteúdo inteiro do arquivo build/chave-atualizacao.pem
+name: Publicar versão
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  exe:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Conferir que a tag bate com a versão do package.json
+        if: startsWith(github.ref, 'refs/tags/')
+        shell: bash
+        run: |
+          v=$(node -p "require('./package.json').version")
+          if [ "v$v" != "${GITHUB_REF_NAME}" ]; then
+            echo "A tag ${GITHUB_REF_NAME} não bate com a versão $v do package.json"; exit 1
+          fi
+
+      - name: Instalar e testar
+        run: |
+          npm ci
+          npm test
+
+      - name: Chave de assinatura
+        shell: bash
+        env:
+          CHAVE: ${{ secrets.CHAVE_ATUALIZACAO }}
+        run: |
+          if [ -z "$CHAVE" ]; then
+            echo "Falta o segredo CHAVE_ATUALIZACAO: sem ele o .exe não sai assinado e ninguém se atualiza sozinho."; exit 1
+          fi
+          printf '%s\n' "$CHAVE" > build/chave-atualizacao.pem
+
+      - name: Gerar Draft100.exe
+        working-directory: build
+        run: |
+          npm ci
+          node build-exe.js
+
+      - name: Apagar a chave da máquina do GitHub
+        if: always()
+        shell: bash
+        run: rm -f build/chave-atualizacao.pem
+
+      - name: Publicar
+        if: startsWith(github.ref, 'refs/tags/')
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          cp "Fechar Draft 100.bat" dist/
+          gh release create "${GITHUB_REF_NAME}" dist/Draft100.exe "dist/Fechar Draft 100.bat" \
+            --title "Draft 100 ${GITHUB_REF_NAME}" --notes "Versão ${GITHUB_REF_NAME}. Quem já tem o jogo atualiza sozinho."

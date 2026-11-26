@@ -271,6 +271,12 @@
       enterRoom(res, name);
     });
   });
+  // o anfitrião reabriu o jogo numa versão nova: recarrega a página para pegar as telas e regras novas
+  let serverVersion = null;
+  socket.on('hello', ({ v } = {}) => {
+    if (serverVersion && v && v !== serverVersion) { toast('O jogo foi atualizado. Recarregando…'); setTimeout(() => location.reload(), 800); return; }
+    serverVersion = v || serverVersion;
+  });
   socket.on('disconnect', () => { if (roomCode) toast('Conexão perdida… tentando reconectar.', true); });
 
   socket.on('state', (st) => {

@@ -10,7 +10,8 @@ Todo texto visível ao usuário é em **português do Brasil**. O dono do projet
 - `DATA_DIR=/tmp/x` grava histórico/config fora de `Documentos\Draft100`.
 - `DRAFT100_DEBUG=1` liga eventos de teste no socket: `debugClutch` (leva o seu jogo aos 30 s finais empatado; `{defend:true}` para defender) e `debugSkip82` (termina a temporada regular do 82-0).
 - O cliente expõe `window.__d100 = { emit, state, me }` para testes automatizados (Playwright).
-- Não há suíte de testes formal: valide com simulações em Node instanciando `Room` com um `io` falso e `Date.now` controlado, e com Playwright no navegador.
+- `npm test` (node:test, pasta `test/`, ~3 s): partidas completas só com bots em todos os formatos/listas (`Room` com `io` falso e `Date.now` controlado, ver `test/helpers.js`), assinatura/atualização (com um GitHub falso) e descoberta UDP. Rode antes de toda entrega; mudanças de equilíbrio ainda pedem milhares de jogos simulados e Playwright no navegador.
+- Opções do .exe: `--trocar-modo`, `--auto-iniciar` (liga/desliga o atalho na pasta Inicializar do Windows) e `--sem-navegador` (não abre o navegador; usado ao iniciar com o Windows e ao reabrir após atualizar). Variáveis de teste: `DRAFT100_PORTABLE`, `DRAFT100_NO_BROWSER`, `DRAFT100_NO_FIREWALL`, `DRAFT100_UPDATE_REPO`, `DRAFT100_UPDATE_API`, `DRAFT100_UPDATE_TEST`.
 
 ## Estrutura
 
@@ -19,7 +20,9 @@ Todo texto visível ao usuário é em **português do Brasil**. O dono do projet
 - `src/league82.js` — modo 82-0 (liga de 30 times com times de lendas, play-in e playoffs melhor de 7). Instalado como mixin em `Room.prototype`.
 - `src/sim.js` — `Match`: simulação posse a posse (características, esquemas, arenas, cartas, fogo/gelo, corridas, pedido de tempo, bola decisiva). `step()` devolve os lances novos; `finish()` simula até o fim no automático.
 - `src/history.js` — `historico.json` (ranking de técnicos e de jogadores por versão).
-- `src/launcher.js`, `discovery.js`, `updater.js`, `paths.js`, `assets.js` — empacotamento Windows: instalação em `%LOCALAPPDATA%\Draft100`, dados em `Documentos\Draft100`, descoberta UDP na porta 41530, atualização automática assinada (ed25519) dos PCs dos amigos.
+- `src/launcher.js`, `discovery.js`, `updater.js`, `paths.js`, `assets.js` — empacotamento Windows: instalação em `%LOCALAPPDATA%\Draft100`, dados em `Documentos\Draft100`, descoberta UDP na porta 41530, regra do Firewall (uma vez, via UAC), início com o Windows, atualização automática assinada (ed25519): amigos baixam do anfitrião (`/api/exe`); o anfitrião baixa do último Release do GitHub (`updateRepo` no `package.json`) ao abrir e a cada 30 min quando ninguém está em sala, e se reabre. Ao reconectar, o navegador recebe `hello {v}` e recarrega se a versão do servidor mudou.
+- `scripts/publicar.js` (`publicar.bat`) — testa, aumenta a versão, faz commit + tag `vX.Y.Z` e envia; `.github/workflows/publicar.yml` gera e assina o .exe no Windows do GitHub (segredo `CHAVE_ATUALIZACAO`) e publica o Release. Sem remoto git, gera o .exe localmente.
+- `Dockerfile`, `deploy/instalar-servidor-linux.sh` (systemd, `DATA_DIR=/var/lib/draft100`), `render.yaml` — servidor 24 h.
 - `public/data.js` — dados compartilhados (UMD: `module.exports` no Node, `window.DATA` no navegador): times, jogadores atuais e lendas (várias versões por ano), MVPs, arenas, cartas, características, esquemas, posições e penalidades.
 - `public/app.js` — cliente em JS puro, renderiza por fase a partir do estado do servidor. `public/style.css` — tema; o layout é desenhado para 1560×900 e usa zoom automático.
 
@@ -27,7 +30,8 @@ Todo texto visível ao usuário é em **português do Brasil**. O dono do projet
 
 `cd build && npm install && node build-exe.js` (ou `build\gerar-exe.bat`). Gera `dist/Draft100.exe` com Node SEA: esbuild junta o servidor, os arquivos de `public/` viram assets e tudo é injetado no `node.exe` oficial (baixado do pacote npm `node-win-x64` e conferido pela assinatura da OpenJS Foundation), com ícone e nome via `resedit`. `--linux` gera também `dist/draft100-linux` para testar o pacote sem Windows.
 
-- **Sempre aumente `version` no `package.json`** antes de gerar uma versão nova: é ela que aparece no jogo e que dispara a atualização automática dos amigos.
+- **Sempre aumente `version` no `package.json`** antes de gerar uma versão nova: é ela que aparece no jogo e que dispara a atualização automática. O `publicar.bat` faz isso sozinho.
+- Testado com Node 26 (o build baixa o `node-win-x64` da mesma versão do Node que roda o build; o GitHub Actions usa Node 22).
 - `build/chave-atualizacao.pem` é a chave privada que assina o .exe. Nunca a publique nem a apague; sem ela os amigos não se atualizam sozinhos. Está no `.gitignore`.
 
 ## Convenções

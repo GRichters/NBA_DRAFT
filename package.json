@@ -3,8 +3,10 @@
   "version": "1.5.1",
   "description": "Draft 100 — leilão de jogadores da NBA multiplayer",
   "main": "server.js",
+  "updateRepo": "",
   "scripts": {
-    "start": "node server.js"
+    "start": "node server.js",
+    "test": "node --test test/"
   },
   "license": "MIT",
   "dependencies": {
@@ -13,15 +15,5 @@
   },
   "engines": {
     "node": ">=18"
-  },
-  "bin": "server.js",
-  "pkg": {
-    "assets": [
-      "public/**/*"
-    ],
-    "targets": [
-      "node22-win-x64"
-    ],
-    "outputPath": "dist"
   }
 }

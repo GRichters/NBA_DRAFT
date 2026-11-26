@@ -25,7 +25,8 @@ Todo mundo usa o **mesmo `Draft100.exe`**. Na primeira vez ele pergunta como aqu
 1. Dê duplo clique no **`Draft100.exe`**. Não precisa de Node.js nem de mais nada.
 2. Se aparecer *"O Windows protegeu o computador"*, clique em **Mais informações → Executar assim mesmo** (o .exe não tem assinatura paga da Microsoft, por isso o aviso).
 3. Ele se instala em `%LOCALAPPDATA%\Draft100`, cria o atalho **Draft 100** na Área de Trabalho e no Menu Iniciar e pergunta: digite **1** (anfitrião) ou **2** (amigo) e aperte Enter.
-4. Quando o Windows perguntar sobre o **Firewall**, marque **redes privadas e públicas** e clique em **Permitir** (a rede do Radmin costuma ser tratada como pública). No PC do anfitrião isso é obrigatório.
+4. No anfitrião, ele pergunta se o servidor deve **abrir sozinho quando o Windows ligar** (minimizado, sem abrir o navegador). Responda **S** se o seu PC vai ser o servidor da turma. Para ligar/desligar depois: Menu Iniciar → **Draft 100 - iniciar com o Windows**.
+5. O jogo pede para se liberar no **Firewall** (aparece o aviso do Windows pedindo permissão: clique em **Sim**). Ele cria uma regra valendo em **todas as redes**, inclusive a do Radmin, que o Windows costuma tratar como pública. Se você recusar, quando o Windows perguntar sobre o Firewall marque **redes privadas e públicas** e clique em **Permitir**.
 
 **Toda vez que forem jogar:**
 1. Todos ligam o **Radmin VPN** na mesma rede.
@@ -45,8 +46,9 @@ Quem não tem o .exe (celular, outro PC) continua entrando pelo link: na sala, *
 **Trocar de papel:** Menu Iniciar → **Draft 100 - trocar modo**.
 
 **Atualizar (você faz uma vez e vale para todos):**
-- O jogo em si (regras, jogadores, telas) roda no PC do anfitrião. Atualizou o seu, **todo mundo já joga a versão nova** na próxima partida — os amigos jogam no navegador, no seu jogo.
-- Para atualizar o seu: baixe o `Draft100.exe` novo e dê duplo clique com o jogo fechado. Ele substitui a versão instalada e mantém atalho, modo e histórico.
+- O jogo em si (regras, jogadores, telas) roda no PC do anfitrião. Atualizou o seu, **todo mundo já joga a versão nova** — os amigos jogam no navegador, no seu jogo. Quem estiver com a página aberta vê *"O jogo foi atualizado. Recarregando…"* e a página se recarrega sozinha.
+- **Com o GitHub configurado** (veja *Atualização 100% automática* abaixo): o seu Draft 100 procura versão nova ao abrir e, se ficar ligado, a cada 30 minutos — **só troca quando ninguém está numa sala**, para nunca derrubar uma partida. Depois se reabre sozinho, minimizado.
+- **Sem GitHub:** baixe o `Draft100.exe` novo e dê duplo clique com o jogo fechado. Ele substitui a versão instalada e mantém atalho, modo e histórico.
 - O `Draft100.exe` dos amigos se atualiza sozinho: quando ele acha o seu jogo e vê que o seu é mais novo, baixa a versão do seu PC, confere a assinatura oficial e se troca. Na tela aparece *"Atualizando... ✓ Atualizado para a versão X"*. Ninguém precisa mandar arquivo para ninguém.
 - A versão aparece na tela inicial, ao lado de "Sem cadastro".
 
@@ -60,9 +62,47 @@ O mesmo vale para quem está na mesma rede Wi-Fi: a descoberta automática tamb�
 
 Também dá para rodar pela pasta do código: instale o **Node.js** (LTS) em https://nodejs.org e dê duplo clique em `iniciar.bat`. Funciona igual e usa a mesma pasta de histórico.
 
-## Opção 2 — Deixar hospedado na internet (grátis, no Render)
+### Atualização 100% automática (configurar uma vez)
 
-Assim ninguém precisa deixar o PC ligado. Todo mundo acessa por um link `https://…onrender.com`.
+Depois disso, publicar uma versão nova é **um duplo clique** e chega sozinha em todo mundo:
+`publicar.bat` → o GitHub gera e assina o `.exe` → o seu PC baixa e se reabre → os amigos baixam do seu PC.
+
+1. Crie uma conta grátis no **GitHub** e um repositório (pode ser **público**: a chave de assinatura nunca vai para lá). Se for privado, o seu PC não consegue baixar as versões sem senha.
+2. Envie esta pasta para o repositório (o `.gitignore` já deixa a chave de fora). Na pasta do jogo:
+   `git remote add origin https://github.com/SEU-USUARIO/draft100.git` e depois `git push -u origin HEAD`.
+3. No repositório: **Settings → Secrets and variables → Actions → New repository secret**, nome **`CHAVE_ATUALIZACAO`**, e cole **o conteúdo inteiro** do arquivo `build\chave-atualizacao.pem`. Só o GitHub Actions lê esse segredo; ninguém mais vê.
+4. No `package.json`, preencha `"updateRepo": "SEU-USUARIO/draft100"`. Rode `publicar.bat` uma vez e instale o `.exe` que sair (aba **Releases** do repositório) no seu PC: a partir dele, o seu Draft 100 já sabe onde procurar as próximas versões.
+
+Para lançar uma versão nova depois: duplo clique em **`publicar.bat`** → escolha *correção* ou *novidade*. Ele roda as partidas de teste (se algo quebrou, não publica), aumenta a versão, envia ao GitHub e em ~5 minutos o `.exe` novo está publicado. Sem GitHub configurado, o mesmo `publicar.bat` gera o `.exe` aqui mesmo em `dist\`.
+
+O que **não** dá para automatizar: o Radmin VPN precisa estar ligado nos PCs (por padrão ele já abre com o Windows) e o seu PC precisa estar ligado para a turma jogar. Para não depender do seu PC, veja a Opção 2.
+
+## Opção 2 — Deixar hospedado na internet 24 h
+
+O jogo roda igual em qualquer servidor Linux (e por um link `https://…`, ninguém precisa de Radmin). Opções grátis (conferidas em nov/2026):
+
+| Onde | Fica ligado sempre? | Guarda o histórico? | Cartão de crédito? |
+|---|---|---|---|
+| **Oracle Cloud "Always Free"** (recomendado) | Sim | Sim | Pede para verificar, não cobra |
+| Google Cloud e2-micro | Sim | Sim | Pede; cobra se passar de 1 GB/mês de tráfego |
+| Render (plano Free) | Dorme após 15 min sem uso | **Não** (perde ao dormir) | Não |
+| Fly.io | Sim (dentro de US$ 5/mês de crédito) | Sim | Pede; cobra se passar do crédito |
+
+**Oracle Cloud (24 h, grátis, com histórico):**
+1. Crie a conta em https://www.oracle.com/cloud/free e uma máquina **Compute → Instance** com Ubuntu, formato *Always Free* (VM.Standard.E2.1.Micro ou Ampere A1).
+2. Em **Networking → Virtual Cloud Network → Security List**, adicione uma regra de entrada TCP na porta **3000** vinda de `0.0.0.0/0`.
+3. Entre na máquina por SSH e rode:
+   `git clone https://github.com/SEU-USUARIO/draft100.git && cd draft100 && sudo bash deploy/instalar-servidor-linux.sh`
+4. O script instala o Node, cria o serviço (liga sozinho se a máquina reiniciar) e mostra o link `http://IP:3000`. Para atualizar: `git pull` e rode o script de novo.
+5. Atenção: a Oracle pode recuperar máquinas grátis que ficam **quase sem uso por 7 dias**. Se acontecer, crie outra e rode o script de novo (o histórico fica em `/var/lib/draft100/historico.json`: faça backup de vez em quando).
+
+Com Docker (qualquer VPS ou Fly.io): `docker build -t draft100 .` e `docker run -d --restart unless-stopped -p 3000:3000 -v draft100-dados:/dados draft100`.
+
+**Seu PC como servidor, mas sem Radmin:** o **Tailscale Funnel** (grátis) dá um link fixo `https://seu-pc.algum-nome.ts.net` que qualquer pessoa abre no navegador, sem instalar nada. Instale o Tailscale no seu PC e rode `tailscale funnel 3000` com o Draft 100 aberto.
+
+### Render (mais fácil, mas dorme e não guarda histórico)
+
+Todo mundo acessa por um link `https://…onrender.com`.
 
 1. Crie uma conta grátis no **GitHub** e outra no **Render** (https://render.com). Pode entrar no Render com a conta do GitHub.
 2. No GitHub, crie um repositório novo e envie **todos os arquivos desta pasta** (menos `node_modules`). Dá para fazer pelo site: *Add file → Upload files* e arrastar os arquivos e pastas.
@@ -71,7 +111,7 @@ Assim ninguém precisa deixar o PC ligado. Todo mundo acessa por um link `https:
 
 **Sobre o plano grátis do Render:** o servidor "dorme" depois de 15 minutos sem ninguém usando. O primeiro acesso depois disso demora por volta de 1 minuto para acordar. Quando ele dorme ou reinicia, as salas abertas se perdem. Durante a partida ele fica acordado normalmente.
 
-Outras hospedagens que rodam Node.js com WebSocket também servem (Railway, Fly.io, uma VPS etc.). O jogo usa a porta da variável `PORT` automaticamente.
+Outras hospedagens que rodam Node.js com WebSocket também servem. O jogo usa a porta da variável `PORT` e a pasta da variável `DATA_DIR` automaticamente.
 
 ## Histórico e ranking da galera
 
