@@ -1,8 +1,10 @@
 # Gera, assina e publica o Draft100.exe sempre que uma versão nova (tag v1.2.3) é enviada.
-# O PC do anfitrião baixa essa versão sozinho; os PCs dos amigos baixam do anfitrião.
+# O código fica neste repositório PRIVADO; só o .exe vai para o repositório PÚBLICO de versões,
+# de onde o PC do anfitrião baixa sozinho. Os PCs dos amigos baixam do anfitrião.
 #
-# Precisa de UM segredo no repositório (Settings → Secrets and variables → Actions → New repository secret):
+# Segredos deste repositório (Settings → Secrets and variables → Actions → New repository secret):
 #   CHAVE_ATUALIZACAO = conteúdo inteiro do arquivo build/chave-atualizacao.pem
+#   TOKEN_VERSOES     = token do GitHub com permissão de escrever no repositório de versões
 name: Publicar versão
 
 on:
@@ -10,8 +12,11 @@ on:
     tags: ['v*']
   workflow_dispatch:
 
+env:
+  VERSOES_REPO: GRichters/NBA_DRAFT-versoes
+
 permissions:
-  contents: write
+  contents: read
 
 jobs:
   exe:
@@ -58,12 +63,14 @@ jobs:
         shell: bash
         run: rm -f build/chave-atualizacao.pem
 
-      - name: Publicar
+      - name: Publicar no repositório de versões
         if: startsWith(github.ref, 'refs/tags/')
         shell: bash
         env:
-          GH_TOKEN: ${{ github.token }}
+          GH_TOKEN: ${{ secrets.TOKEN_VERSOES }}
         run: |
+          if [ -z "$GH_TOKEN" ]; then echo "Falta o segredo TOKEN_VERSOES."; exit 1; fi
           cp "Fechar Draft 100.bat" dist/
           gh release create "${GITHUB_REF_NAME}" dist/Draft100.exe "dist/Fechar Draft 100.bat" \
+            --repo "$VERSOES_REPO" \
             --title "Draft 100 ${GITHUB_REF_NAME}" --notes "Versão ${GITHUB_REF_NAME}. Quem já tem o jogo atualiza sozinho."

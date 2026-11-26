@@ -77,6 +77,8 @@ async function bundle() {
   await esbuild.build({
     entryPoints: [path.join(ROOT, 'server.js')],
     bundle: true, platform: 'node', target: 'node22', format: 'cjs',
+    // código compactado e embaralhado: quem abrir o .exe não lê o código-fonte como ele está no projeto
+    minify: true, keepNames: true, legalComments: 'none',
     outfile: path.join(TMP, 'bundle.js'),
     external: ['bufferutil', 'utf-8-validate'], // opcionais do socket.io
     logLevel: 'warning',
@@ -90,7 +92,18 @@ function seaBlob() {
   const pub = path.join(ROOT, 'public');
   const keys = walk(pub).filter((k) => !k.startsWith('fotos/'));
   const assets = {};
-  for (const k of keys) assets[k] = path.join(pub, k);
+  const { transformSync } = require('esbuild');
+  for (const k of keys) {
+    const src = path.join(pub, k);
+    const ext = path.extname(k).toLowerCase();
+    if (ext !== '.js' && ext !== '.css') { assets[k] = src; continue; }
+    // os arquivos do site também vão compactados (o navegador recebe a versão compactada)
+    const out = path.join(TMP, 'site', k);
+    fs.mkdirSync(path.dirname(out), { recursive: true });
+    const code = transformSync(fs.readFileSync(src, 'utf8'), { loader: ext.slice(1), minify: true, legalComments: 'none', target: ext === '.js' ? 'es2020' : undefined });
+    fs.writeFileSync(out, code.code);
+    assets[k] = out;
+  }
   assets['vendor/socket.io.min.js'] = path.join(ROOT, 'node_modules', 'socket.io', 'client-dist', 'socket.io.min.js');
   fs.writeFileSync(path.join(TMP, 'manifest.json'), JSON.stringify(keys));
   assets['manifest.json'] = path.join(TMP, 'manifest.json');

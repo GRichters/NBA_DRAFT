@@ -3,7 +3,7 @@
   "version": "1.5.1",
   "description": "Draft 100 — leilão de jogadores da NBA multiplayer",
   "main": "server.js",
-  "updateRepo": "",
+  "updateRepo": "GRichters/NBA_DRAFT-versoes",
   "scripts": {
     "start": "node server.js",
     "test": "node --test test/"
