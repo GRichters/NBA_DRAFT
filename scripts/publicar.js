@@ -46,7 +46,7 @@ try { run('npm', ['install', '--package-lock-only', '--no-audit', '--no-fund', '
 console.log('\n▸ Gravando no git');
 run('git', ['add', '-A']);
 run('git', ['commit', '-m', `Versão ${version}`]);
-run('git', ['tag', `v${version}`]);
+run('git', ['tag', '-a', `v${version}`, '-m', `Versão ${version}`]); // tag "anotada": é a que o --follow-tags envia
 
 if (hasRemote()) {
   console.log('\n▸ Enviando para o GitHub');
