@@ -685,6 +685,37 @@ class Room {
     if ((!best || bestPen >= 16) && free.includes('bench') && left >= court.length) best = 'bench';
     this.putIn(m, pid, best || free[0]);
   }
+  // durante o leilão: troca dois lugares (quadra ↔ quadra, quadra ↔ banco) ou move para um lugar vazio
+  // lugares: 'PG'…'C', 'b0', 'b1'… (banco ocupado) e 'bench' (vaga vazia no banco)
+  moveLineup(mid, from, to) {
+    const m = this.mgr(mid);
+    if (!m || m.isBot || !m.lineup || this.phase !== 'auction') return { error: 'Agora não dá para mexer na quadra.' };
+    if (m.pending) return { error: 'Primeiro escolha a posição do jogador que você acabou de comprar.' };
+    const lu = m.lineup;
+    const valid = (k) => D.POS_ORDER.includes(k) || k === 'bench' || /^b\d+$/.test(k);
+    if (!valid(from) || !valid(to) || from === to || from === 'bench') return { error: 'Movimento inválido.' };
+    const get = (k) => (D.POS_ORDER.includes(k) ? lu[k] : k === 'bench' ? null : lu.bench[+k.slice(1)]);
+    const a = get(from), b = get(to);
+    if (!a) return { error: 'Escolha um jogador.' };
+    if (/^b\d+$/.test(to) && !b) return { error: 'Movimento inválido.' };
+    if (to === 'bench') {
+      if (lu.bench.length >= this.benchCap()) return { error: 'O banco está cheio.' };
+      // tirar alguém da quadra: as vagas que faltam comprar precisam dar para completar o quinteto
+      const holes = D.POS_ORDER.filter((k) => !lu[k]).length + (D.POS_ORDER.includes(from) ? 1 : 0);
+      if (D.POS_ORDER.includes(from) && holes > this.slotsLeft(m)) return { error: 'Não dá: faltariam jogadores para completar a quadra.' };
+    }
+    const set = (k, v) => {
+      if (D.POS_ORDER.includes(k)) lu[k] = v || null;
+      else if (k === 'bench') { if (v) lu.bench.push(v); }
+      else lu.bench[+k.slice(1)] = v || null;
+    };
+    set(from, b);
+    set(to, a);
+    lu.bench = lu.bench.filter(Boolean);
+    this.touch();
+    return { ok: true };
+  }
+
   place(mid, slot) {
     const m = this.mgr(mid);
     if (!m || this.phase !== 'auction' || !m.pending) return { error: 'Não há jogador para posicionar.' };

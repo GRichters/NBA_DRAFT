@@ -148,6 +148,7 @@ function startServer() {
     socket.on('bid', act((d, now) => room.bid(myId, d.amount, now)));
     socket.on('pass', act(() => room.pass(myId)));
     socket.on('place', act((d) => room.place(myId, d.slot)));
+    socket.on('moveLineup', act((d) => room.moveLineup(myId, String(d.from || ''), String(d.to || ''))));
     socket.on('ready', act((d) => room.setReady(myId, !!d.ready)));
     socket.on('card', act((d) => room.chooseCard(myId, d.card)));
     socket.on('applyBoost', act((d) => room.applyBoost(myId, d.pid, d.choice)));

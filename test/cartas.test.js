@@ -185,3 +185,37 @@ test('82-0: pedido de tempo e carta funcionam nos jogos ao vivo do play-in/playo
     assert.ok(c.ok, c.error);
   } finally { clock.restore(); }
 });
+
+test('durante o leilão dá para trocar os jogadores de lugar na quadra', () => {
+  const room = new Room('MOVE', fakeIo());
+  const { id } = room.join(fakeSocket(), 'Ana', 'tok-ana');
+  room.setSettings(id, { pool: 'atual', rosterSize: 8 });
+  room.addBot(id);
+  room.start(id);
+  room.phase = 'auction'; // (pula arenas e sorteio)
+  const m = room.mgr(id);
+  const [a, b, c] = ['a0', 'a1', 'a2'];
+  m.roster = [a, b, c];
+  Object.assign(m.lineup, { PG: a, SG: b, SF: null, PF: null, C: null, bench: [c] });
+  // troca PG ↔ SG
+  assert.ok(room.moveLineup(id, 'PG', 'SG').ok);
+  assert.equal(m.lineup.PG, b); assert.equal(m.lineup.SG, a);
+  // banco → posição vazia
+  assert.ok(room.moveLineup(id, 'b0', 'C').ok);
+  assert.equal(m.lineup.C, c); assert.deepEqual(m.lineup.bench, []);
+  // quadra → banco vazio (ainda faltam 5 compras para 3 buracos: pode)
+  assert.ok(room.moveLineup(id, 'C', 'bench').ok);
+  assert.deepEqual(m.lineup.bench, [c]); assert.equal(m.lineup.C, null);
+  // não pode deixar mais buracos na quadra do que vagas para comprar
+  m.roster = ['a0', 'a1', 'a2', 'a3', 'a4', 'a5', 'a6'];
+  Object.assign(m.lineup, { PG: 'a0', SG: 'a1', SF: 'a3', PF: 'a4', C: null, bench: ['a2', 'a5'] });
+  // falta 1 compra e já há 1 buraco (C): tirar o PG deixaria 2 buracos
+  assert.ok(room.moveLineup(id, 'PG', 'bench').error);
+  assert.ok(room.moveLineup(id, 'b0', 'C').ok, 'mas pode tapar o buraco com quem está no banco');
+  // com jogador para posicionar, primeiro posiciona
+  m.pending = 'a7';
+  assert.ok(room.moveLineup(id, 'SG', 'PG').error);
+  m.pending = null;
+  room.phase = 'season';
+  assert.ok(room.moveLineup(id, 'SG', 'PG').error, 'na temporada é pela Prancheta');
+});

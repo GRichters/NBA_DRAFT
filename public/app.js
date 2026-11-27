@@ -199,6 +199,19 @@
     return `<div class="court ${opts.mode || 'view'}"><div class="court-floor">${COURT_SVG}${court}</div>${bench}</div>`;
   }
 
+  // quadro com as posições do jogador: onde ele joga sem perder nada e quanto rende em cada uma
+  function posInfoHTML(p, slot) {
+    if (!p) return '';
+    const chips = D.POS_ORDER.map((k) => {
+      const pen = D.posPenalty(p, k);
+      return `<span class="pchip ${pen ? 'bad' : 'ok'} ${slot === k ? 'here' : ''}" title="${D.POS_LABELS[k]}"><b>${k}</b> ${pen ? `${p.ovr - pen} <small>−${pen}</small>` : `${p.ovr} ✓`}</span>`;
+    }).join('');
+    const here = slot && slot !== 'bench' ? (D.posPenalty(p, slot) ? `Agora de <b>${slot}</b>: perde ${D.posPenalty(p, slot)} (rende ${p.ovr - D.posPenalty(p, slot)}).` : `Agora de <b>${slot}</b>: posição de origem.`) : slot ? 'Agora no banco.' : '';
+    return `<div class="posinfo"><div class="pi-top">${mainTrait(p)} <b>${esc(p.name)}</b> <span class="muted">· ${p.ovr} · joga de</span> <b class="pi-pos">${posStr(p).split('/').map((x) => `${x} (${D.POS_LABELS[x]})`).join(', ')}</b></div>
+      <div class="pi-chips">${chips}</div>${here ? `<div class="muted small">${here}</div>` : ''}</div>`;
+  }
+  const slotPid = (lu, k) => (k && k[0] === 'b' && k !== 'bench' ? (lu.bench || [])[+k.slice(1)] : lu[k]);
+
   const W_LABEL = ['Principal', 'Secundária', 'Terciária'];
   function traitsHTML(p, full) {
     const t = (p.tags || '').split('').filter((c) => D.TRAITS[c]);
@@ -1045,11 +1058,23 @@
     $('#passBtn').onclick = () => socket.emit('pass');
     $('#frBuy').onclick = () => socket.emit('bid', { amount: 0 }, (r) => { if (r && r.error) toast(r.error, true); });
     $('#frPass').onclick = () => socket.emit('pass', {}, (r) => { if (r && r.error) toast(r.error, true); });
+    auctionSel = null;
     $('#myCourt').onclick = (e) => {
       const b = e.target.closest('[data-cslot]');
-      if (!b) return;
-      const slot = b.dataset.cslot === 'bench' ? 'bench' : b.dataset.cslot;
-      socket.emit('place', { slot }, (r) => { if (r && r.error) toast(r.error, true); else sfx.mine(); });
+      const m = me();
+      if (!b || !m) return;
+      const slot = b.dataset.cslot;
+      if (m.pending) { // jogador recém-comprado: escolhe onde ele joga
+        socket.emit('place', { slot }, (r) => { if (r && r.error) toast(r.error, true); else sfx.mine(); });
+        return;
+      }
+      // clique num jogador para ver as posições dele; depois clique em outro lugar para trocar
+      if (!auctionSel) { if (b.classList.contains('filled')) auctionSel = slot; renderAuctionCourt(true); return; }
+      if (auctionSel === slot) { auctionSel = null; renderAuctionCourt(true); return; }
+      const from = auctionSel;
+      auctionSel = null;
+      socket.emit('moveLineup', { from, to: slot }, (r) => { if (r && r.error) toast(r.error, true); });
+      renderAuctionCourt(true);
     };
     $('#pauseBtn').onclick = () => socket.emit('pause');
     $('#skipBtn').onclick = () => socket.emit('skipLot');
@@ -1287,18 +1312,8 @@
 
     // meu elenco
     if (m) {
-      const slots = S.settings.rosterSize - m.roster.length;
       $('#myInfo').textContent = `${m.roster.length}/${S.settings.rosterSize} · ${money(m.budget)}`;
-      const courtLeft = D.POS_ORDER.filter((k) => !(m.lineup || {})[k]).length;
-      const key = JSON.stringify([m.lineup, m.pending, m.roster.length]);
-      if ($('#myCourt').dataset.k !== key) {
-        $('#myCourt').dataset.k = key;
-        $('#myCourt').innerHTML = m.lineup ? courtHTML(m, { mode: m.pending ? 'place' : 'view', pending: m.pending, benchCap: S.settings.rosterSize - 5, canBench: slots >= courtLeft }) : '';
-        $('#placeBanner').innerHTML = m.pending
-          ? `<div class="place-banner">🏀 Onde <b>${esc(P(m.pending).name)}</b> vai jogar? <span>Passe o mouse nas posições para ver se ele perde rendimento. O leilão continua quando você escolher.</span></div>` : '';
-        $('#courtPanel').classList.toggle('placing', !!m.pending);
-        if (m.pending && window.innerWidth < 1180) $('#courtPanel').scrollIntoView({ behavior: 'smooth', block: 'center' });
-      }
+      renderAuctionCourt();
       $('#myRoster').innerHTML = rosterHTML(m);
     } else {
       $('#myRoster').innerHTML = '<div class="empty-note">Você está assistindo.</div>';
@@ -1317,6 +1332,27 @@
         ? `<div class="h">${mchip(h.mid)}<span class="n">${esc(p.name)} <span class="muted small">${p.ovr}</span></span><span class="p">${money(h.price)}</span></div>`
         : `<div class="h u"><span class="tchip" style="background:#333">—</span><span class="n">${esc(p.name)} <span class="small">${p.ovr}</span></span><span class="small">sem lance</span></div>`;
     }).join('') : '<div class="empty-note">Nenhum lote ainda.</div>';
+  }
+
+  // Minha quadra no leilão: posicionar quem comprou, ou clicar num jogador para ver as posições e trocar de lugar
+  let auctionSel = null;
+  function renderAuctionCourt(force) {
+    const m = me();
+    if (!m || !$('#myCourt')) return;
+    const slots = S.settings.rosterSize - m.roster.length;
+    const courtLeft = D.POS_ORDER.filter((k) => !(m.lineup || {})[k]).length;
+    if (m.pending || (auctionSel && !slotPid(m.lineup || {}, auctionSel))) auctionSel = null;
+    const key = JSON.stringify([m.lineup, m.pending, m.roster.length, auctionSel]);
+    if (!force && $('#myCourt').dataset.k === key) return;
+    $('#myCourt').dataset.k = key;
+    $('#myCourt').innerHTML = m.lineup ? courtHTML(m, { mode: m.pending ? 'place' : 'edit', sel: auctionSel, pending: m.pending, benchCap: S.settings.rosterSize - 5, canBench: slots >= courtLeft }) : '';
+    const selP = auctionSel ? P(slotPid(m.lineup, auctionSel)) : null;
+    $('#placeBanner').innerHTML = m.pending
+      ? `<div class="place-banner">🏀 Onde <b>${esc(P(m.pending).name)}</b> vai jogar? <span>Passe o mouse nas posições para ver se ele perde rendimento. O leilão continua quando você escolher.</span></div>${posInfoHTML(P(m.pending))}`
+      : selP ? `${posInfoHTML(selP, auctionSel[0] === 'b' ? 'bench' : auctionSel)}<div class="court-help">Clique no lugar para onde ele vai (troca com quem estiver lá) ou nele de novo para cancelar.</div>`
+      : m.roster.length ? '<div class="court-help">Clique num jogador para ver as posições dele e trocar de lugar.</div>' : '';
+    $('#courtPanel').classList.toggle('placing', !!m.pending);
+    if (m.pending && force !== true && window.innerWidth < 1180) $('#courtPanel').scrollIntoView({ behavior: 'smooth', block: 'center' });
   }
 
   function rosterHTML(m) {
@@ -1741,7 +1777,8 @@
       if (force || $('#lineupEd').dataset.k !== key) {
         $('#lineupEd').dataset.k = key;
         $('#lineupEd').innerHTML = courtHTML(m, { mode: 'edit', sel: courtSel, heat }) +
-          `<div class="court-help">${courtSel ? 'Agora clique no lugar para onde ele vai (passe o mouse para ver o rendimento).' : 'Clique num jogador e depois no lugar para trocar. Fora da posição de origem: −8 numa posição vizinha, −16 a duas, −24 ou mais além disso.'}</div>`;
+          (courtSel ? posInfoHTML(P(slotPid(lu, courtSel)), courtSel[0] === 'b' ? 'bench' : courtSel) : '') +
+          `<div class="court-help">${courtSel ? 'Agora clique no lugar para onde ele vai (passe o mouse para ver o rendimento).' : 'Clique num jogador para ver as posições dele e depois no lugar para trocar. Fora da posição de origem: −8 numa posição vizinha, −16 a duas, −24 ou mais além disso.'}</div>`;
       }
       $('#benchList').innerHTML = '';
     }

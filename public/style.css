@@ -787,3 +787,16 @@ body.w-sm .season.spec { grid-template-columns: 1fr; }
 .bp-a.up { background: rgba(37,208,124,.1); }
 .boost-done { font-size: 15px; }
 @media (max-width: 700px) { .bp-grid { grid-template-columns: repeat(3, 1fr); } .boost-lot { flex-direction: column; align-items: flex-start; } .bl-icon { font-size: 60px; } }
+
+/* ---------- posições do jogador selecionado na quadra ---------- */
+.posinfo { margin: 8px 0; padding: 10px 12px; border-radius: 12px; background: rgba(255,207,64,.07); border: 1px solid rgba(255,207,64,.35); font-size: 13.5px; }
+.pi-top { margin-bottom: 8px; line-height: 1.4; }
+.pi-pos { color: var(--gold); }
+.pi-chips { display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; margin-bottom: 6px; }
+.pchip { display: flex; flex-direction: column; align-items: center; padding: 5px 2px; border-radius: 8px; font-size: 13px; font-weight: 700; background: rgba(255,255,255,.04); border: 1px solid var(--line); }
+.pchip b { font-family: var(--display); font-weight: 400; font-size: 17px; letter-spacing: .5px; }
+.pchip small { color: var(--red); font-weight: 800; }
+.pchip.ok { border-color: rgba(37,208,124,.55); background: rgba(37,208,124,.1); color: var(--green); }
+.pchip.bad { color: var(--muted); }
+.pchip.here { box-shadow: 0 0 0 2px var(--gold); }
+.cspot.sel .cjersey { filter: drop-shadow(0 0 3px var(--gold)) drop-shadow(0 0 10px rgba(255,207,64,.8)); transform: scale(1.08); }
