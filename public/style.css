@@ -755,3 +755,35 @@ body.w-sm .season.spec { grid-template-columns: 1fr; }
 .gm-b .btn { min-width: 130px; }
 @keyframes gmfade { from { opacity: 0; } to { opacity: 1; } }
 @keyframes gmpop { from { transform: scale(.94); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+
+/* ---------- MVP das Finais, atributos 99/100 e cartas de reforço ---------- */
+.mvp-badge.fmvp { background: linear-gradient(90deg, rgba(120,200,255,.25), rgba(120,200,255,.08)); color: #9fd8ff; box-shadow: 0 0 0 1px rgba(120,200,255,.45) inset; }
+.boost-badge { display: inline-block; margin-top: 8px; padding: 4px 10px; border-radius: 8px; font-size: 12.5px; font-weight: 800; background: rgba(37,208,124,.14); color: var(--green); box-shadow: 0 0 0 1px rgba(37,208,124,.45) inset; }
+.attr.top100 .v { color: var(--gold); text-shadow: 0 0 14px rgba(255,207,64,.55); }
+.attr.top99 .v { color: #9fd8ff; text-shadow: 0 0 12px rgba(120,200,255,.45); }
+.card.boostcard { background: radial-gradient(520px 260px at 85% 0%, rgba(37,208,124,.25), transparent 70%), linear-gradient(160deg, #10261d, #0b1310); border-color: #1f5a40; }
+.boost-lot { display: flex; gap: 22px; align-items: center; }
+.bl-icon { font-size: 86px; line-height: 1; filter: drop-shadow(0 8px 16px rgba(0,0,0,.45)); }
+.bl-body { min-width: 0; }
+.bl-desc { margin-top: 8px; font-size: 15px; line-height: 1.45; color: rgba(255,255,255,.9); max-width: 620px; }
+.boost-apply { border-color: rgba(37,208,124,.45); }
+.boost-head { display: flex; gap: 14px; align-items: center; margin-bottom: 12px; }
+.bh-icon { font-size: 44px; }
+.bpick { display: flex; flex-wrap: wrap; gap: 8px; }
+.bpl { display: flex; align-items: center; gap: 8px; padding: 6px 12px 6px 8px; border-radius: 10px; border: 1px solid var(--line); background: rgba(255,255,255,.04); color: inherit; text-align: left; }
+.bpl:hover { border-color: rgba(255,255,255,.35); }
+.bpl.sel { border-color: var(--green); background: rgba(37,208,124,.12); }
+.bpl .o { font-family: var(--display); font-size: 22px; min-width: 26px; }
+.bpl .n { display: flex; flex-direction: column; font-weight: 700; font-size: 13px; }
+.bpl small { color: var(--muted); font-weight: 600; }
+.bopts { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin-top: 12px; }
+.bp { margin-top: 12px; padding: 12px; border-radius: 12px; background: rgba(255,255,255,.03); border: 1px solid var(--line); }
+.bp-h { font-size: 14px; margin-bottom: 6px; }
+.bp-grid { display: grid; grid-template-columns: repeat(6, 1fr); gap: 8px; margin-top: 10px; }
+.bp-a { display: flex; flex-direction: column; align-items: center; padding: 6px; border-radius: 8px; background: rgba(255,255,255,.03); }
+.bp-a .k { font-size: 10.5px; font-weight: 800; letter-spacing: 1px; color: var(--muted); text-transform: uppercase; }
+.bp-a .v { font-family: var(--display); font-size: 24px; line-height: 1.1; }
+.bp-a .d { font-size: 12px; font-weight: 800; color: var(--green); }
+.bp-a.up { background: rgba(37,208,124,.1); }
+.boost-done { font-size: 15px; }
+@media (max-width: 700px) { .bp-grid { grid-template-columns: repeat(3, 1fr); } .boost-lot { flex-direction: column; align-items: flex-start; } .bl-icon { font-size: 60px; } }

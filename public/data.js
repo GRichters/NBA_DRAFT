@@ -696,6 +696,89 @@
     ['Rajon Rondo', 'PG', 86, 'PD', '9', 2012, 'BOS'],
     ['Tom Heinsohn', 'PF', 85, 'X', '15', 1960, 'BOS'],
     ['Jo Jo White', 'PG', 85, 'M', '10', 1974, 'BOS'],
+    // versões novas: MVPs das Finais, MVPs que faltavam e mais temporadas das grandes lendas
+    ['Jerry West', 'PG/SG', 93, 'CMP', '44', 1969, 'LAL'],
+    ['Willis Reed', 'C', 87, 'RGC', '19', 1973, 'NYK'],
+    ['Jo Jo White', 'PG', 86, 'MCP', '10', 1976, 'BOS'],
+    ['Bill Walton', 'C', 90, 'PBR', '32', 1977, 'POR'],
+    ['Wes Unseld', 'C', 85, 'RP', '41', 1978, 'WSB'],
+    ['Cedric Maxwell', 'SF/PF', 82, 'GI', '31', 1981, 'BOS'],
+    ['Magic Johnson', 'PG/SF', 93, 'PRI', '32', 1982, 'LAL'],
+    ['Kareem Abdul-Jabbar', 'C', 92, 'GXB', '33', 1985, 'LAL'],
+    ['Isiah Thomas', 'PG', 91, 'PCI', '11', 1990, 'DET'],
+    ['Michael Jordan', 'SG/SF', 98, 'XDC', '23', 1992, 'CHI'],
+    ['Michael Jordan', 'SG/SF', 97, 'XCM', '23', 1993, 'CHI'],
+    ['Hakeem Olajuwon', 'C', 95, 'GBD', '34', 1995, 'HOU'],
+    ['Michael Jordan', 'SG/SF', 97, 'MXC', '23', 1997, 'CHI'],
+    ['Tim Duncan', 'PF/C', 93, 'GBR', '21', 1999, 'SAS'],
+    ['Shaquille O\'Neal', 'C', 96, 'GRX', '34', 2001, 'LAL'],
+    ['Shaquille O\'Neal', 'C', 95, 'GRB', '34', 2002, 'LAL'],
+    ['Tim Duncan', 'PF/C', 94, 'GBR', '21', 2005, 'SAS'],
+    ['Kobe Bryant', 'SG/SF', 95, 'XMC', '8', 2009, 'LAL'],
+    ['LeBron James', 'SF/PF/PG', 98, 'IPX', '6', 2012, 'MIA'],
+    ['Kevin Durant', 'SF/PF', 95, 'MSX', '35', 2018, 'GSW'],
+    ['Giannis Antetokounmpo', 'PF/C', 96, 'IRB', '34', 2021, 'MIL'],
+    ['Stephen Curry', 'PG', 95, 'SXC', '30', 2022, 'GSW'],
+    ['Nikola Jokić', 'C', 97, 'PGR', '15', 2023, 'DEN'],
+    ['Bob Pettit', 'PF', 90, 'RX', '9', 1956, 'STL'],
+    ['Bill Russell', 'C', 93, 'BRD', '6', 1958, 'BOS'],
+    ['Wilt Chamberlain', 'C', 95, 'XRG', '13', 1960, 'PHW'],
+    ['Bill Russell', 'C', 94, 'BRP', '6', 1961, 'BOS'],
+    ['Bill Russell', 'C', 94, 'BRD', '6', 1963, 'BOS'],
+    ['Wilt Chamberlain', 'C', 96, 'RXB', '13', 1966, 'PHI'],
+    ['Wilt Chamberlain', 'C', 95, 'RPB', '13', 1968, 'PHI'],
+    ['Kareem Abdul-Jabbar', 'C', 97, 'GXB', '33', 1972, 'MIL'],
+    ['Kareem Abdul-Jabbar', 'C', 95, 'GBR', '33', 1974, 'MIL'],
+    ['Kareem Abdul-Jabbar', 'C', 96, 'GBR', '33', 1976, 'LAL'],
+    ['Kareem Abdul-Jabbar', 'C', 95, 'GXB', '33', 1980, 'LAL'],
+    ['Moses Malone', 'C', 92, 'RG', '24', 1982, 'HOU'],
+    ['Larry Bird', 'SF/PF', 97, 'SPX', '33', 1985, 'BOS'],
+    ['Magic Johnson', 'PG/SF', 96, 'PRS', '32', 1989, 'LAL'],
+    ['Tim Duncan', 'PF/C', 96, 'GBR', '21', 2002, 'SAS'],
+    ['LeBron James', 'SF/PF/PG', 97, 'IPX', '23', 2010, 'CLE'],
+    ['Nikola Jokić', 'C', 97, 'PGR', '15', 2024, 'DEN'],
+    ['Kobe Bryant', 'SG/SF', 94, 'XMI', '8', 2003, 'LAL'],
+    ['Dwyane Wade', 'SG', 91, 'IDX', '3', 2011, 'MIA'],
+    ['Kevin Garnett', 'PF/C', 93, 'BRM', '21', 2003, 'MIN'],
+    ['Dirk Nowitzki', 'PF', 93, 'MSX', '41', 2006, 'DAL'],
+    ['Hakeem Olajuwon', 'C', 93, 'BGR', '34', 1990, 'HOU'],
+    ['Patrick Ewing', 'C', 91, 'GBR', '33', 1994, 'NYK'],
+    ['Scottie Pippen', 'SF/SG', 91, 'DPI', '33', 1996, 'CHI'],
+    ['Karl Malone', 'PF', 91, 'GXR', '32', 1992, 'UTA'],
+    ['John Stockton', 'PG', 90, 'PDS', '12', 1995, 'UTA'],
+    ['Gary Payton', 'PG', 90, 'DPX', '20', 2000, 'SEA'],
+    ['Charles Barkley', 'PF', 92, 'RIG', '34', 1991, 'PHI'],
+    ['Allen Iverson', 'SG/PG', 90, 'XID', '3', 1999, 'PHI'],
+    ['Tracy McGrady', 'SF/SG', 91, 'XMI', '1', 2002, 'ORL'],
+    ['Vince Carter', 'SG/SF', 91, 'IXS', '15', 2000, 'TOR'],
+    ['Chris Paul', 'PG', 92, 'PDM', '3', 2009, 'NOH'],
+    ['Russell Westbrook', 'PG', 91, 'IXP', '0', 2016, 'OKC'],
+    ['James Harden', 'SG/PG', 94, 'XSP', '13', 2019, 'HOU'],
+    ['Kawhi Leonard', 'SF', 92, 'DMS', '2', 2017, 'SAS'],
+    ['Julius Erving', 'SF', 90, 'IX', '6', 1983, 'PHI'],
+    ['Isiah Thomas', 'PG', 90, 'PIX', '11', 1984, 'DET'],
+    ['Elgin Baylor', 'SF', 92, 'XRI', '22', 1961, 'LAL'],
+    ['Jerry West', 'PG/SG', 93, 'XMC', '44', 1966, 'LAL'],
+    ['Stephen Curry', 'PG', 94, 'SXP', '30', 2017, 'GSW'],
+    ['Giannis Antetokounmpo', 'PF/C', 95, 'IRX', '34', 2023, 'MIL'],
+    ['Luka Dončić', 'PG/SG', 94, 'XPS', '77', 2022, 'DAL'],
+    ['Damian Lillard', 'PG', 92, 'SCX', '0', 2020, 'POR'],
+    ['Joel Embiid', 'C', 93, 'GXR', '21', 2022, 'PHI'],
+    ['Penny Hardaway', 'PG/SG', 89, 'PIX', '1', 1995, 'ORL'],
+    ['Reggie Miller', 'SG', 88, 'SCM', '31', 1995, 'IND'],
+    ['Ray Allen', 'SG', 86, 'SC', '20', 2009, 'BOS'],
+    ['Pau Gasol', 'PF/C', 88, 'GPR', '16', 2009, 'LAL'],
+    ['Tony Parker', 'PG', 88, 'IPM', '9', 2013, 'SAS'],
+    ['Manu Ginóbili', 'SG', 87, 'ICS', '20', 2008, 'SAS'],
+    ['Klay Thompson', 'SG', 88, 'SDM', '11', 2019, 'GSW'],
+    ['Draymond Green', 'PF/C', 87, 'DPB', '23', 2017, 'GSW'],
+    ['Steve Nash', 'PG', 89, 'PSM', '13', 2010, 'PHX'],
+    ['Yao Ming', 'C', 89, 'GRB', '11', 2007, 'HOU'],
+    ['Paul Pierce', 'SF', 89, 'XSM', '34', 2002, 'BOS'],
+    ['Grant Hill', 'SF', 90, 'PIX', '33', 2000, 'DET'],
+    ['Scottie Pippen', 'SF/SG', 90, 'DPI', '33', 1992, 'CHI'],
+    ['Kevin McHale', 'PF', 89, 'GBR', '32', 1986, 'BOS'],
+    ['Dennis Johnson', 'SG/PG', 86, 'DP', '3', 1984, 'BOS'],
   ];
 
   // MVPs da temporada regular (ano = fim da temporada). Quem aparece no ano em que foi MVP ganha bônus.
@@ -715,6 +798,22 @@
     2015: 'Stephen Curry', 2016: 'Stephen Curry', 2017: 'Russell Westbrook', 2018: 'James Harden', 2019: 'Giannis Antetokounmpo',
     2020: 'Giannis Antetokounmpo', 2021: 'Nikola Jokić', 2022: 'Nikola Jokić', 2023: 'Joel Embiid', 2024: 'Nikola Jokić',
     2025: 'Shai Gilgeous-Alexander', 2026: 'Shai Gilgeous-Alexander',
+  };
+  // MVPs das Finais (ano = fim da temporada). A versão do ano em que foi MVP das Finais ganha um bônus
+  // um pouco menor que o do MVP da temporada.
+  const FMVPS = {
+    1969: 'Jerry West', 1970: 'Willis Reed', 1971: 'Kareem Abdul-Jabbar', 1972: 'Wilt Chamberlain', 1973: 'Willis Reed',
+    1974: 'John Havlicek', 1975: 'Rick Barry', 1976: 'Jo Jo White', 1977: 'Bill Walton', 1978: 'Wes Unseld',
+    1979: 'Dennis Johnson', 1980: 'Magic Johnson', 1981: 'Cedric Maxwell', 1982: 'Magic Johnson', 1983: 'Moses Malone',
+    1984: 'Larry Bird', 1985: 'Kareem Abdul-Jabbar', 1986: 'Larry Bird', 1987: 'Magic Johnson', 1988: 'James Worthy',
+    1989: 'Joe Dumars', 1990: 'Isiah Thomas', 1991: 'Michael Jordan', 1992: 'Michael Jordan', 1993: 'Michael Jordan',
+    1994: 'Hakeem Olajuwon', 1995: 'Hakeem Olajuwon', 1996: 'Michael Jordan', 1997: 'Michael Jordan', 1998: 'Michael Jordan',
+    1999: 'Tim Duncan', 2000: 'Shaquille O\'Neal', 2001: 'Shaquille O\'Neal', 2002: 'Shaquille O\'Neal', 2003: 'Tim Duncan',
+    2004: 'Chauncey Billups', 2005: 'Tim Duncan', 2006: 'Dwyane Wade', 2007: 'Tony Parker', 2008: 'Paul Pierce',
+    2009: 'Kobe Bryant', 2010: 'Kobe Bryant', 2011: 'Dirk Nowitzki', 2012: 'LeBron James', 2013: 'LeBron James',
+    2014: 'Kawhi Leonard', 2015: 'Andre Iguodala', 2016: 'LeBron James', 2017: 'Kevin Durant', 2018: 'Kevin Durant',
+    2019: 'Kawhi Leonard', 2020: 'LeBron James', 2021: 'Giannis Antetokounmpo', 2022: 'Stephen Curry', 2023: 'Nikola Jokić',
+    2024: 'Jaylen Brown', 2025: 'Shai Gilgeous-Alexander', 2026: 'Jalen Brunson',
   };
   const CURRENT_SEASON = 2026; // temporada dos jogadores "NBA Atual"
 
@@ -746,7 +845,7 @@
       const name = era === 'lenda' && year ? `${base} '${String(year).slice(2)}` : base;
       PLAYERS[id] = {
         id, name, base, pos: pos[0], positions: pos, ovr: row[2], tags: row[3] || '',
-        num: row[4] || '', year, team: row[6] || null, era, mvp: !!year && MVPS[year] === base,
+        num: row[4] || '', year, team: row[6] || null, era, mvp: !!year && MVPS[year] === base, fmvp: !!year && FMVPS[year] === base,
       };
       ids.push(id);
     });
@@ -865,9 +964,15 @@
   };
   const TRAIT_WEIGHTS = [1, 0.6, 0.35]; // 1ª, 2ª e 3ª característica
   const TRAIT_BOOST = 12;               // pontos de atributo que a 1ª característica soma
-  const MVP_BONUS = 7;                  // bônus extra do MVP na característica principal
+  const MVP_BONUS = 7;                  // bônus extra do MVP da temporada na característica principal
+  const FMVP_BONUS = 4.5;               // bônus do MVP das Finais (um pouco menor)
+  // Tetos dos atributos: ninguém passa de 98. Só o atributo principal do MVP da temporada chega a 100,
+  // e o do MVP das Finais a 99 (jogando na posição dele).
+  const STAT_CAP = 98, MVP_TOP = 100, FMVP_TOP = 99;
   // em qual estatística o bônus de MVP aparece (para mostrar no card)
   const MVP_STAT = { S: 'Bola de 3', M: 'Meia distância', I: 'Infiltração', G: 'Jogo de garrafão', X: 'Pontuação', P: 'Passe', R: 'Rebote', D: 'Defesa', B: 'Proteção de aro', C: 'Decisão no fim do jogo' };
+  // atributo(s) ligados a cada característica (o "atributo principal" de quem tem essa característica em 1º)
+  const TRAIT_ATTR = { S: ['tres'], M: ['media'], I: ['infil'], G: ['post'], X: ['tres', 'media', 'infil'], P: ['passe'], R: ['reb'], D: ['defPer'], B: ['defAro'], C: ['clutch'] };
   function tw(p, letter) {
     const i = (p.tags || '').indexOf(letter);
     return i < 0 ? 0 : (TRAIT_WEIGHTS[i] || 0.25);
@@ -889,24 +994,112 @@
   const isBig = (p) => positionsOf(p).some((x) => x === 'PF' || x === 'C');
 
   // ---------- atributos (já com a penalidade de posição, se houver) ----------
-  function attrs(p, penalty = 0) {
+  // Acima de 92 o atributo cresce mais devagar e para em 98: as estrelas continuam na frente, sem estourar a escala.
+  // O que aparece no card é exatamente o que vale na simulação.
+  const softCap = (v) => (v <= 92 ? v : Math.min(STAT_CAP, 92 + (v - 92) * 0.45));
+  const ATTR_KEYS = ['tres', 'media', 'infil', 'post', 'passe', 'reb', 'defPer', 'defAro', 'clutch'];
+  // atributo principal: o da 1ª característica (no Pontuador, o melhor entre 3, meia e infiltração)
+  function mainAttr(p, a) {
+    const ks = TRAIT_ATTR[(p.tags || '')[0]];
+    if (!ks) return null;
+    return ks.reduce((best, k) => (a[k] > a[best] ? k : best), ks[0]);
+  }
+  function rawAttrs(p, penalty) {
     const o = p.ovr - penalty, pos = p.pos;
-    // MVP da temporada: bônus extra na característica principal
-    const mvpT = p.mvp ? (p.tags || '')[0] : null;
-    const b = (l) => TRAIT_BOOST * tw(p, l) + (mvpT === l ? MVP_BONUS : 0);
+    // MVP da temporada (ou, um pouco menos, das Finais): bônus extra na característica principal
+    const star = p.mvp ? MVP_BONUS : p.fmvp ? FMVP_BONUS : 0;
+    const mvpT = star ? (p.tags || '')[0] : null;
+    const b = (l) => TRAIT_BOOST * tw(p, l) + (mvpT === l ? star : 0);
+    const xs = mvpT === 'X' ? star * 0.6 : 0;
     const guard = pos === 'PG' || pos === 'SG';
-    const clamp = (v) => Math.max(35, Math.min(115, Math.round(v))); // acima de 99 só na simulação; na tela o máximo é 99
-    return {
-      tres: clamp(o - 9 + b('S') * 1.25 + (mvpT === 'X' ? MVP_BONUS * 0.6 : 0) + (pos === 'C' ? -10 : pos === 'PF' ? -4 : 0)),
-      media: clamp(o - 6 + b('M') * 1.2 + b('X') * 0.3 + (mvpT === 'X' ? MVP_BONUS * 0.6 : 0)),
-      infil: clamp(o - 5 + b('I') * 1.2 + b('X') * 0.3 + (mvpT === 'X' ? MVP_BONUS * 0.6 : 0) + (pos === 'C' ? -4 : 0)),
-      post: clamp(o - 8 + b('G') * 1.3 + (pos === 'C' ? 8 : pos === 'PF' ? 5 : guard ? -10 : 0)),
-      passe: clamp(o - 7 + b('P') * 1.3 + (pos === 'PG' ? 4 : pos === 'C' ? -5 : 0)),
-      reb: clamp(o - 8 + b('R') * 1.3 + (pos === 'C' ? 7 : pos === 'PF' ? 4 : pos === 'PG' ? -6 : 0)),
-      defPer: clamp(o - 6 + b('D') * 1.25 + (pos === 'C' ? -6 : 0)),
-      defAro: clamp(o - 8 + b('B') * 1.3 + (pos === 'C' ? 7 : pos === 'PF' ? 3 : guard ? -10 : 0)),
-      clutch: clamp(o - 4 + b('C') * 1.2),
+    const raw = {
+      tres: o - 9 + b('S') * 1.25 + xs + (pos === 'C' ? -10 : pos === 'PF' ? -4 : 0),
+      media: o - 6 + b('M') * 1.2 + b('X') * 0.3 + xs,
+      infil: o - 5 + b('I') * 1.2 + b('X') * 0.3 + xs + (pos === 'C' ? -4 : 0),
+      post: o - 8 + b('G') * 1.3 + (pos === 'C' ? 8 : pos === 'PF' ? 5 : guard ? -10 : 0),
+      passe: o - 7 + b('P') * 1.3 + (pos === 'PG' ? 4 : pos === 'C' ? -5 : 0),
+      reb: o - 8 + b('R') * 1.3 + (pos === 'C' ? 7 : pos === 'PF' ? 4 : pos === 'PG' ? -6 : 0),
+      defPer: o - 6 + b('D') * 1.25 + (pos === 'C' ? -6 : 0),
+      defAro: o - 8 + b('B') * 1.3 + (pos === 'C' ? 7 : pos === 'PF' ? 3 : guard ? -10 : 0),
+      clutch: o - 4 + b('C') * 1.2,
     };
+    // cartas de reforço: pontos extras em atributos
+    if (p.bonus) for (const k of ATTR_KEYS) raw[k] += p.bonus[k] || 0;
+    return raw;
+  }
+  function attrs(p, penalty = 0) {
+    const raw = rawAttrs(p, penalty);
+    const out = {};
+    for (const k of ATTR_KEYS) out[k] = Math.max(35, Math.round(softCap(raw[k])));
+    // MVP: o atributo principal vai a 100 (MVP das Finais: 99), menos a penalidade se jogar fora de posição
+    const top = p.mvp ? MVP_TOP : p.fmvp ? FMVP_TOP : 0;
+    const mk = top ? mainAttr(p, raw) : null;
+    if (mk) out[mk] = Math.max(out[mk], top - penalty);
+    return out;
+  }
+
+  // ---------- cartas de reforço (leilão antes do leilão de jogadores) ----------
+  // Cada técnico compra no máximo uma, com o mesmo dinheiro do leilão de jogadores, e depois do leilão
+  // aplica em um único jogador do seu elenco. O reforço vale para o jogo todo (temporada e playoffs).
+  const BOOSTS = {
+    evolucao: { label: 'Evolução', icon: '⬆️', desc: '+3 de overall (até 99): todos os atributos do jogador sobem.' },
+    fundamentos: { label: 'Treino de fundamentos', icon: '🏋️', desc: '+10 nos 2 atributos mais baixos do jogador (até 98).' },
+    especialista: { label: 'Especialista', icon: '🎯', desc: '+12 no atributo principal (o da 1ª característica; Pontuador: +7 nos três arremessos) e +6 no da 2ª, até 98.' },
+    versatil: { label: 'Versatilidade', icon: '🔄', desc: 'Ganha uma posição vizinha (ex.: PG vira PG/SG) e joga nela sem perder rendimento.', choose: 'pos' },
+    dna: { label: 'Nova característica', icon: '🧬', desc: 'Ganha uma característica nova à sua escolha. Ela entra como a 2ª mais forte dele, com +8 no atributo dela (se ele já tinha 3, a 3ª sai).', choose: 'trait' },
+  };
+  const BOOST_KEYS = Object.keys(BOOSTS);
+  // os 6 atributos que aparecem no card (garrafão e defesa juntam dois atributos cada)
+  const CARD_ATTRS = { tres: ['tres'], media: ['media'], garrafao: ['infil', 'post'], passe: ['passe'], reb: ['reb'], def: ['defPer', 'defAro'] };
+  const CARD_ATTR_LABEL = { tres: '3 Pts', media: 'Média', garrafao: 'Garrafão', passe: 'Passe', reb: 'Rebote', def: 'Defesa' };
+  function cardAttrs(p, penalty = 0) {
+    const a = attrs(p, penalty);
+    return { tres: a.tres, media: a.media, garrafao: Math.max(a.infil, a.post), passe: a.passe, reb: a.reb, def: Math.max(a.defPer, a.defAro) };
+  }
+  // posições que a Versatilidade pode dar: vizinhas das que ele já joga
+  function boostPositions(p) {
+    const have = positionsOf(p);
+    const out = new Set();
+    for (const ps of have) {
+      const i = POS_ORDER.indexOf(ps);
+      for (const j of [i - 1, i + 1]) if (POS_ORDER[j] && !have.includes(POS_ORDER[j])) out.add(POS_ORDER[j]);
+    }
+    return POS_ORDER.filter((x) => out.has(x));
+  }
+  const boostTraits = (p) => Object.keys(TRAITS).filter((l) => !(p.tags || '').includes(l));
+  // os 2 atributos mais baixos do card
+  function lowestCardAttrs(p) {
+    const a = cardAttrs(p);
+    return Object.keys(a).sort((x, y) => a[x] - a[y]).slice(0, 2);
+  }
+  // devolve uma cópia do jogador com a carta aplicada (ou null se a escolha não vale para ele)
+  function applyBoost(p, type, choice) {
+    const q = { ...p, positions: positionsOf(p).slice(), bonus: { ...(p.bonus || {}) }, boost: { type, choice: choice || null } };
+    const add = (k, v) => { q.bonus[k] = (q.bonus[k] || 0) + v; };
+    const first = (p.tags || '')[0];
+    if (type === 'evolucao') {
+      if (p.ovr >= 99) return null;
+      q.ovr = Math.min(99, p.ovr + 3);
+    } else if (type === 'fundamentos') {
+      const low = lowestCardAttrs(p);
+      for (const g of low) for (const k of CARD_ATTRS[g]) add(k, 10);
+      q.boost.choice = low.join(',');
+    } else if (type === 'especialista') {
+      if (!first || !TRAIT_ATTR[first]) return null;
+      for (const k of TRAIT_ATTR[first]) add(k, first === 'X' ? 7 : 12);
+      const second = (p.tags || '')[1];
+      if (second && TRAIT_ATTR[second]) for (const k of TRAIT_ATTR[second]) add(k, second === 'X' ? 3 : 6);
+    } else if (type === 'versatil') {
+      if (!boostPositions(p).includes(choice)) return null;
+      const all = q.positions.concat(choice).filter((x) => x !== p.pos).sort((x, y) => POS_ORDER.indexOf(x) - POS_ORDER.indexOf(y));
+      q.positions = [p.pos, ...all]; // a posição principal continua a mesma (e o estilo de jogo também)
+    } else if (type === 'dna') {
+      if (!boostTraits(p).includes(choice)) return null;
+      const t = p.tags || '';
+      q.tags = t ? (t[0] + choice + t.slice(1)).slice(0, 3) : choice; // entra como 2ª característica
+      for (const k of TRAIT_ATTR[choice]) add(k, choice === 'X' ? 4 : 8);
+    } else return null;
+    return q;
   }
 
   // ---------- esquemas (sistema de jogo) ----------
@@ -984,12 +1177,13 @@
   function tablePrice(p) {
     const o = p.ovr;
     const base = o >= 98 ? 24 : o >= 96 ? 20 : o >= 94 ? 16 : o >= 92 ? 13 : o >= 90 ? 10 : o >= 88 ? 8 : o >= 86 ? 6 : o >= 84 ? 4 : o >= 82 ? 3 : o >= 80 ? 2 : 1;
-    return base + (p.mvp ? 2 : 0);
+    return base + (p.mvp ? 2 : p.fmvp ? 1 : 0);
   }
 
   const DATA = {
     OFFER_RATIO, lotsFor, FRANCHISE_BUDGET, tablePrice,
-    TEAMS, OLD_TEAMS, FRANCHISE_OF, franchiseOf, EAST, confOf, CONF_LABEL, baseId, CARDS, CARD_AUTO, ARENAS, ARENA_TIERS, arenaText, arenaTeamColors, PLAYERS, POOLS, POOL_INFO, MVPS, MVP_BONUS, MVP_STAT, CURRENT_SEASON, identity, TRAITS, TRAIT_WEIGHTS, tw, POS_ORDER, POS_LABELS,
+    TEAMS, OLD_TEAMS, FRANCHISE_OF, franchiseOf, EAST, confOf, CONF_LABEL, baseId, CARDS, CARD_AUTO, ARENAS, ARENA_TIERS, arenaText, arenaTeamColors, PLAYERS, POOLS, POOL_INFO, MVPS, FMVPS, MVP_BONUS, FMVP_BONUS, MVP_STAT, STAT_CAP, MVP_TOP, FMVP_TOP, mainAttr,
+    BOOSTS, BOOST_KEYS, CARD_ATTRS, CARD_ATTR_LABEL, cardAttrs, boostPositions, boostTraits, lowestCardAttrs, applyBoost, CURRENT_SEASON, identity, TRAITS, TRAIT_WEIGHTS, tw, POS_ORDER, POS_LABELS,
     positionsOf, posPenalty, isGuard, isBig, attrs, SCHEMES, DEF_SCHEMES, schemeFit, schemeBonusText, autoLineup,
   };
   if (typeof module !== 'undefined' && module.exports) module.exports = DATA;

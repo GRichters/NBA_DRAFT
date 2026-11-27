@@ -37,7 +37,7 @@ const methods = {
       const team = this.buildCpuTeam(t.id, target);
       s.cpu[team.id] = team;
     });
-    this.extraAll = Object.assign({}, this.extra, this.cpuExtra);
+    this.extraAll = Object.assign({}, this.extra, this.boosted, this.cpuExtra);
     s.leagueBase = Math.round(base * 10) / 10;
   },
 

@@ -78,6 +78,18 @@ function recordGame(game) {
   save();
 }
 
+// jogadores ofertados nos últimos leilões (para o sorteio variar de uma partida para outra)
+const RECENT_KEEP = 4;
+function recentOffers() {
+  load();
+  return Array.isArray(db.recentOffers) ? db.recentOffers : [];
+}
+function noteOffers(ids) {
+  load();
+  db.recentOffers = [ids.slice(), ...recentOffers()].slice(0, RECENT_KEEP);
+  save();
+}
+
 function ranking() {
   load();
   const list = Object.values(db.players).map((p) => ({
@@ -96,4 +108,4 @@ function ranking() {
   return { players: list, games: db.games.slice(0, 20), atletas, file: FILE };
 }
 
-module.exports = { recordGame, ranking, keyOf };
+module.exports = { recordGame, ranking, keyOf, recentOffers, noteOffers };

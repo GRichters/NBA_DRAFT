@@ -50,6 +50,7 @@ class Room {
     this.managers = [];
     this.chat = [];
     this.extra = {}; // agentes livres gerados
+    this.boosted = {}; // jogadores com carta de reforço aplicada (cópias do original)
     this.auction = null;
     this.season = null;
     this.end = null;
@@ -63,7 +64,8 @@ class Room {
   // ---------- utilidades ----------
   // técnicos da sala; no 82-0 também os times de lendas da liga
   mgr(id) { return this.managers.find((m) => m.id === id) || (this.season && this.season.cpu ? this.season.cpu[id] : undefined); }
-  player(id) { return PLAYERS[id] || this.extra[id] || (this.cpuExtra && this.cpuExtra[id]); }
+  // jogador com carta de reforço aplicada vem primeiro (a versão reforçada vale para o jogo todo)
+  player(id) { return (this.boosted && this.boosted[id]) || PLAYERS[id] || this.extra[id] || (this.cpuExtra && this.cpuExtra[id]); }
   humans() { return this.managers.filter((m) => !m.isBot); }
   slotsLeft(m) { return this.settings.rosterSize - m.roster.length; }
   maxBid(m) { return Math.max(0, m.budget - (this.slotsLeft(m) - 1)); }
@@ -71,11 +73,35 @@ class Room {
   baseBudget() { return this.isFranchise() ? (D.FRANCHISE_BUDGET[this.settings.rosterSize] || 60) : BUDGET; }
 
   // monta a lista de ofertas: quantidade igual por posição (pela posição principal), uma versão de cada jogador,
-  // com um pouco mais de chance para quem tem overall maior
-  buildQueue(ids, count) {
+  // com um pouco mais de chance para quem tem overall maior. Quem foi ofertado nos últimos leilões
+  // (mesmo em outras partidas) tem menos chance de voltar, e a mesma versão de uma lenda menos ainda.
+  buildQueue(ids, count, recent = []) {
+    const verW = {}, identW = {};
+    recent.forEach((list, age) => {
+      const f = [0.15, 0.35, 0.55, 0.75][age] || 1;
+      for (const id of list || []) {
+        const p = PLAYERS[id];
+        if (!p) continue;
+        verW[id] = Math.min(verW[id] ?? 1, f);
+        const k = D.identity(p);
+        identW[k] = Math.min(identW[k] ?? 1, Math.sqrt(f));
+      }
+    });
+    const pickW = (arr, wf) => {
+      let total = 0;
+      const ws = arr.map((x) => { const w = wf(x); total += w; return w; });
+      let r = rnd() * total, k = 0;
+      for (; k < arr.length - 1; k++) { r -= ws[k]; if (r <= 0) break; }
+      return k;
+    };
     const byId = {};
     for (const id of ids) { const key = D.identity(PLAYERS[id]); (byId[key] = byId[key] || []).push(id); }
-    const groups = Object.values(byId).map((vs) => shuffle(vs));
+    // a versão de cada lenda é sorteada (as que saíram há pouco têm menos chance); as outras ficam de reserva
+    const groups = Object.values(byId).map((vs) => {
+      const rest = shuffle(vs);
+      const k = pickW(rest, (id) => verW[id] ?? 1);
+      return [rest[k], ...rest.filter((_, i) => i !== k)];
+    });
     let cands = groups.map((vs) => vs.shift());
     const out = [];
     const take = (filter, n) => {
@@ -83,7 +109,7 @@ class Room {
         const pool = cands.filter(filter);
         if (!pool.length) return;
         let total = 0;
-        const ws = pool.map((id) => { const w = 1 + Math.max(0, PLAYERS[id].ovr - 75) / 8; total += w; return w; });
+        const ws = pool.map((id) => { const w = (1 + Math.max(0, PLAYERS[id].ovr - 75) / 8) * (identW[D.identity(PLAYERS[id])] ?? 1); total += w; return w; });
         let r = rnd() * total, k = 0;
         for (; k < pool.length - 1; k++) { r -= ws[k]; if (r <= 0) break; }
         out.push(pool[k]);
@@ -246,10 +272,12 @@ class Room {
     if (!this.isHost(mid) || this.phase !== 'lobby') return { error: 'Só o líder pode iniciar.' };
     if (this.managers.length < 2) return { error: 'Precisa de pelo menos 2 técnicos (adicione bots se quiser).' };
     this.extra = {};
+    this.boosted = {};
+    this.extraAll = null;
     this.end = null;
     this.season = null;
     for (const m of this.managers) {
-      m.budget = this.baseBudget(); m.roster = []; m.prices = {}; m.tactics = defaultTactics(); m.arena = null; m.card = null; m.pending = null;
+      m.budget = this.baseBudget(); m.roster = []; m.prices = {}; m.tactics = defaultTactics(); m.arena = null; m.card = null; m.pending = null; m.boost = null;
       m.lineup = { PG: null, SG: null, SF: null, PF: null, C: null, bench: [] };
     }
     if (this.isFranchise()) {
@@ -331,22 +359,26 @@ class Room {
     // fila do leilão: 60% mais jogadores do que vagas, com a mesma quantidade por posição
     const ownerOf = {};
     let pool;
+    const recent = history.recentOffers();
     if (this.isFranchise()) {
       // cada técnico recebe só as lendas da franquia que escolheu; os lotes se alternam entre os técnicos
       const per = this.managers.map((m) => {
         const ids = POOLS.lendas.filter((id) => D.franchiseOf(PLAYERS[id].team) === m.team);
-        const q = this.buildQueue(ids, D.lotsFor(this.settings.rosterSize));
+        const q = this.buildQueue(ids, D.lotsFor(this.settings.rosterSize), recent);
         q.forEach((id) => { ownerOf[id] = m.id; });
         return q;
       });
       pool = [];
       for (let i = 0; per.some((q) => i < q.length); i++) per.forEach((q) => { if (i < q.length) pool.push(q[i]); });
     } else {
-      pool = this.buildQueue(POOLS[this.settings.pool], D.lotsFor(this.managers.length * this.settings.rosterSize));
+      pool = this.buildQueue(POOLS[this.settings.pool], D.lotsFor(this.managers.length * this.settings.rosterSize), recent);
     }
+    history.noteOffers(pool);
+    const boosts = this.buildBoostQueue();
     this.auction = {
       queue: pool, ownerOf, lot: null, history: [], unsold: [], lotNo: 0,
       total: pool.length, paused: false, pausedLeft: 0,
+      boostQueue: boosts, boostTotal: boosts.length, boostNo: 0,
     };
     // antes do sorteio: todos veem as arenas e confirmam "Pronto"
     this.phase = 'arenas';
@@ -369,7 +401,8 @@ class Room {
   updateDraw(now) {
     if (now < this.draw.until) return;
     this.phase = 'auction';
-    this.sys(this.isFranchise() ? `O leilão começou! Cada técnico recebe as lendas da sua franquia, com preço fixo. Caixa: US$ ${this.baseBudget()} milhões.` : `O leilão começou! ${this.auction.total} jogadores serão ofertados. Cada técnico tem US$ ${this.baseBudget()} milhões.`);
+    if (this.auction.boostQueue.length) this.sys(`Primeiro, o leilão de cartas de reforço: ${this.auction.boostTotal} cartas, no máximo uma por técnico. O dinheiro sai do mesmo caixa do leilão de jogadores (US$ ${this.baseBudget()} milhões).`);
+    else this.sys(this.isFranchise() ? `O leilão começou! Cada técnico recebe as lendas da sua franquia, com preço fixo. Caixa: US$ ${this.baseBudget()} milhões.` : `O leilão começou! ${this.auction.total} jogadores serão ofertados. Cada técnico tem US$ ${this.baseBudget()} milhões.`);
     this.nextLot(now);
     this.touch();
   }
@@ -433,8 +466,61 @@ class Room {
     return { ok: true };
   }
 
+  // ---------- leilão de cartas de reforço (antes dos jogadores) ----------
+  // Menos cartas do que técnicos (a partir de 4), sorteadas sem repetir até usar todos os tipos.
+  buildBoostQueue() {
+    const n = this.managers.length;
+    const count = Math.max(1, n - Math.floor(n / 4));
+    const out = [];
+    while (out.length < count) out.push(...shuffle(D.BOOST_KEYS));
+    return out.slice(0, count);
+  }
+  isBoostLot() { const lot = this.auction && this.auction.lot; return !!(lot && lot.kind === 'boost'); }
+  // na carta, o técnico precisa guardar US$ 1M por vaga do elenco que ainda vai montar
+  boostMaxBid(m) { return Math.max(0, m.budget - Math.max(0, this.slotsLeft(m))); }
+  lotMaxBid(m) { return this.isBoostLot() ? this.boostMaxBid(m) : this.maxBid(m); }
+  canBuyLot(m) { return this.isBoostLot() ? !m.boost : this.slotsLeft(m) > 0; }
+
+  botBoostValue(m, type) {
+    if (m.boost) return 0;
+    const lot = this.auction.boostQueue.length; // cartas que ainda vêm depois desta
+    const wanting = this.managers.filter((x) => !x.boost).length;
+    // (medido em milhares de jogos: cada carta vale de +4 a +7 pontos de aproveitamento; a versatilidade depende do elenco)
+    const base = { evolucao: 8, especialista: 7, fundamentos: 7, dna: 7, versatil: 5 }[type] || 6;
+    if (lot >= wanting && rnd() < 0.3) return 0; // ainda vai sobrar carta: às vezes espera
+    let v = base * (this.baseBudget() / BUDGET) * m.greed * (0.7 + rnd() * 0.6);
+    if (lot === 0) v *= 1.3; // última carta
+    return Math.max(1, Math.min(this.boostMaxBid(m), Math.round(v)));
+  }
+
+  nextBoostLot(now) {
+    const a = this.auction;
+    const type = a.boostQueue.shift();
+    a.boostNo++;
+    a.lot = {
+      kind: 'boost', boost: type, pid: null, bid: 0, leader: null, endsAt: now + this.settings.bidTime * 1000, passed: new Set(),
+      result: null, resultUntil: 0, botMax: {}, botNext: {}, bids: 0, owner: null, price: null, basePrice: null, discount: null,
+    };
+    for (const m of this.managers) {
+      if (!m.isBot) continue;
+      a.lot.botMax[m.id] = this.botBoostValue(m, type);
+      a.lot.botNext[m.id] = now + 1200 + rnd() * 2500;
+    }
+    this.touch();
+  }
+
   nextLot(now) {
     const a = this.auction;
+    // primeiro as cartas (enquanto houver carta e alguém sem carta)
+    if (a.boostQueue.length && this.managers.some((m) => !m.boost)) return this.nextBoostLot(now);
+    if (!a.playersStarted) {
+      a.playersStarted = true;
+      a.boostQueue = [];
+      if (a.boostTotal) {
+        this.sys(this.isFranchise() ? `Agora os jogadores! Cada técnico recebe as lendas da sua franquia, com preço fixo.` : `Agora os jogadores! ${a.total} serão ofertados.`);
+        this.touch();
+      }
+    }
     if (this.isFranchise()) {
       // pula os lotes de quem já completou o elenco
       while (a.queue.length && this.slotsLeft(this.mgr(a.ownerOf[a.queue[0]]) || { roster: [] }) <= 0) { a.unsold.push(a.queue.shift()); a.lotNo++; }
@@ -513,14 +599,14 @@ class Room {
   canBid(m, amount) {
     const lot = this.auction && this.auction.lot;
     if (!lot || lot.result || this.auction.paused) return false;
-    if (this.slotsLeft(m) <= 0) return false;
+    if (!this.canBuyLot(m)) return false;
     if (lot.leader === m.id) return false;
     const min = lot.bid + 1;
-    return amount >= min && amount <= this.maxBid(m);
+    return amount >= min && amount <= this.lotMaxBid(m);
   }
 
   bid(mid, amount, now) {
-    if (this.isFranchise() && this.phase === 'auction') return this.franchiseDecide(mid, true, now);
+    if (this.isFranchise() && this.phase === 'auction' && !this.isBoostLot()) return this.franchiseDecide(mid, true, now);
     const m = this.mgr(mid);
     amount = Math.floor(Number(amount));
     if (!m || this.phase !== 'auction' || !Number.isFinite(amount)) return { error: 'Lance inválido.' };
@@ -528,8 +614,9 @@ class Room {
     if (!this.canBid(m, amount)) {
       const lot = this.auction.lot;
       if (lot && lot.leader === m.id) return { error: 'Você já tem o maior lance.' };
-      if (this.slotsLeft(m) <= 0) return { error: 'Seu elenco já está completo.' };
-      if (lot && amount > this.maxBid(m)) return { error: `Seu lance máximo é US$ ${this.maxBid(m)}M (guarde US$ 1M por vaga restante).` };
+      if (this.isBoostLot() && m.boost) return { error: 'Você já comprou a sua carta de reforço (só uma por técnico).' };
+      if (!this.isBoostLot() && this.slotsLeft(m) <= 0) return { error: 'Seu elenco já está completo.' };
+      if (lot && amount > this.lotMaxBid(m)) return { error: `Seu lance máximo é US$ ${this.lotMaxBid(m)}M (guarde US$ 1M por vaga ${this.isBoostLot() ? 'do elenco' : 'restante'}).` };
       return { error: 'Alguém deu um lance maior antes. Tente de novo.' };
     }
     const lot = this.auction.lot;
@@ -546,7 +633,7 @@ class Room {
   }
 
   pass(mid) {
-    if (this.isFranchise() && this.phase === 'auction') return this.franchiseDecide(mid, false, Date.now());
+    if (this.isFranchise() && this.phase === 'auction' && !this.isBoostLot()) return this.franchiseDecide(mid, false, Date.now());
     const lot = this.auction && this.auction.lot;
     if (!lot || lot.result || lot.leader === mid) return;
     lot.passed.add(mid);
@@ -572,7 +659,7 @@ class Room {
   }
 
   eligibleBidders(lot) {
-    return this.managers.filter((m) => m.id !== lot.leader && this.slotsLeft(m) > 0 && this.maxBid(m) >= lot.bid + 1);
+    return this.managers.filter((m) => m.id !== lot.leader && this.canBuyLot(m) && this.lotMaxBid(m) >= lot.bid + 1);
   }
 
   // ---------- posicionar o jogador comprado na quadra ----------
@@ -624,7 +711,7 @@ class Room {
     }
     if (a.paused) return;
 
-    if (this.isFranchise()) {
+    if (this.isFranchise() && !this.isBoostLot()) {
       const o = this.mgr(lot.owner);
       if (o && o.isBot && now >= (lot.botNext[o.id] || 0)) return this.franchiseDecide(o.id, this.botWantsFranchise(o, lot.pid, lot.price), now);
       if (o && !o.isBot && !o.connected) return this.franchiseDecide(o.id, this.botWantsFranchise(o, lot.pid, lot.price), now);
@@ -636,7 +723,7 @@ class Room {
     for (const m of this.managers) {
       if (!m.isBot || lot.passed.has(m.id) || lot.leader === m.id) continue;
       const next = lot.bid + 1;
-      if (this.slotsLeft(m) <= 0 || this.maxBid(m) < next) { lot.passed.add(m.id); continue; }
+      if (!this.canBuyLot(m) || this.lotMaxBid(m) < next) { lot.passed.add(m.id); continue; }
       const max = lot.botMax[m.id] || 0;
       if (max < next) { lot.passed.add(m.id); this.touch(); continue; }
       if (now < lot.botNext[m.id]) continue;
@@ -644,7 +731,7 @@ class Room {
       let inc = 1 + Math.floor(rnd() * Math.max(1, lot.bid * 0.25));
       if (max - lot.bid > 12) inc += Math.floor(rnd() * 4);
       if (lot.bid === 0) inc = Math.max(1, Math.round(max * (0.3 + rnd() * 0.3)));
-      const amount = Math.min(max, this.maxBid(m), lot.bid + inc);
+      const amount = Math.min(max, this.lotMaxBid(m), lot.bid + inc);
       this.bid(m.id, amount, now);
     }
 
@@ -659,6 +746,19 @@ class Room {
   resolveLot(now) {
     const a = this.auction;
     const lot = a.lot;
+    if (lot.kind === 'boost') {
+      const m = lot.leader && this.mgr(lot.leader);
+      if (m) {
+        m.budget -= lot.bid;
+        m.boost = { type: lot.boost, price: lot.bid, pid: null, choice: null };
+        lot.result = { type: 'sold', mid: m.id, price: lot.bid };
+      } else lot.result = { type: 'unsold' };
+      a.history.unshift({ boost: lot.boost, mid: m ? m.id : null, price: m ? lot.bid : 0 });
+      if (a.history.length > 40) a.history.pop();
+      lot.resultUntil = now + RESULT_MS;
+      this.touch();
+      return;
+    }
     const p = this.player(lot.pid);
     if (lot.leader) {
       const m = this.mgr(lot.leader);
@@ -726,13 +826,67 @@ class Room {
     }
     if (leftovers.length) this.sys(`Vagas que ficaram abertas foram completadas com os piores jogadores disponíveis em cada posição: ${leftovers.slice(0, 12).join(', ')}${leftovers.length > 12 ? '…' : ''}.`);
     a.lot = null;
-    this.sys('Leilão encerrado! Agora cada técnico escolhe uma carta.');
+    this.sys(this.managers.some((m) => m.boost) ? 'Leilão encerrado! Agora cada técnico escolhe a carta de jogo e aplica a carta de reforço em um jogador.' : 'Leilão encerrado! Agora cada técnico escolhe uma carta.');
     this.phase = 'cards';
     for (const m of this.managers) {
       m.card = null;
-      if (m.isBot) m.card = this.botCard(m);
+      if (m.isBot) { m.card = this.botCard(m); this.botBoost(m); }
     }
     this.touch();
+  }
+
+  // ---------- carta de reforço: aplicar em um jogador ----------
+  boostDone(m) { return !m.boost || !!m.boost.pid; }
+  applyBoostTo(m, pid, choice, quiet) {
+    if (!m || !m.boost || m.boost.pid) return { error: 'Você não tem carta de reforço para aplicar.' };
+    if (!m.roster.includes(pid)) return { error: 'Escolha um jogador do seu elenco.' };
+    const base = this.player(pid);
+    const kind = D.BOOSTS[m.boost.type];
+    const q = base && D.applyBoost(base, m.boost.type, choice);
+    if (!q) return { error: kind.choose === 'pos' ? 'Escolha uma posição vizinha que ele ainda não joga.' : kind.choose === 'trait' ? 'Escolha uma característica que ele ainda não tem.' : 'Essa carta não serve para esse jogador.' };
+    this.boosted[pid] = q;
+    m.boost.pid = pid;
+    m.boost.choice = q.boost.choice;
+    if (!quiet) this.sys(`${kind.icon} ${m.name} usou ${kind.label} em ${base.name}.`);
+    this.touch();
+    return { ok: true };
+  }
+  applyBoost(mid, pid, choice) {
+    if (this.phase !== 'cards') return { error: 'A carta de reforço é aplicada depois do leilão.' };
+    return this.applyBoostTo(this.mgr(mid), String(pid || ''), choice ? String(choice) : null);
+  }
+  // escolha automática: o jogador e a opção que mais melhoram o time na posição em que ele joga
+  botBoost(m) {
+    if (!m.boost || m.boost.pid) return;
+    const type = m.boost.type;
+    const lu = m.lineup || {};
+    const slotOf = (pid) => D.POS_ORDER.find((k) => lu[k] === pid) || null;
+    const score = (p, slot) => {
+      const pen = slot ? D.posPenalty(p, slot) : 0;
+      const a = D.cardAttrs(p, pen);
+      return Object.values(a).reduce((x, y) => x + y, 0) + 4 * (p.ovr - pen);
+    };
+    let best = null;
+    for (const pid of m.roster) {
+      const p = this.player(pid);
+      if (!p) continue;
+      const slot = slotOf(pid);
+      const opts = type === 'versatil' ? D.boostPositions(p) : type === 'dna' ? D.boostTraits(p) : [null];
+      for (const c of opts) {
+        const q = D.applyBoost(p, type, c);
+        if (!q) continue;
+        // versatilidade: vale o ganho de jogar na vaga atual (ou na posição nova, se ele estiver no banco)
+        const s2 = type === 'versatil' && !slot ? score(q, c) - score(p, c) : score(q, slot) - score(p, slot);
+        const gain = s2 * (slot ? 1 : 0.4) + p.ovr * 0.01;
+        if (!best || gain > best.gain) best = { pid, c, gain };
+      }
+    }
+    if (best) this.applyBoostTo(m, best.pid, best.c, true);
+    if (!m.boost.pid) { m.boost.pid = 'nenhum'; return; } // ninguém serve: carta perdida
+    if (m.isBot && type === 'versatil' && m.lineup) {
+      // o bot reorganiza a quadra para aproveitar a posição nova
+      Object.assign(m.lineup, D.autoLineup(m.roster.map((id) => this.player(id)).filter(Boolean)));
+    }
   }
 
   // ---------- cartas ----------
@@ -885,6 +1039,7 @@ class Room {
     }
     this.season = s;
     this.phase = 'season';
+    this.extraAll = Object.assign({}, this.extra, this.boosted); // o 82-0 acrescenta os times de lendas
     if (fmt === 'oitenta') {
       s.stage = 'liga';
       s.fast = true;
@@ -1037,7 +1192,7 @@ class Room {
     const mh = this.mgr(h), ma = this.mgr(a);
     return new Match(id,
       [{ mid: h, roster: mh.roster, tactics: mh.tactics, lineup: mh.lineup, arena: this.arenaOf(mh), card: mh.card },
-       { mid: a, roster: ma.roster, tactics: ma.tactics, lineup: ma.lineup, arena: this.arenaOf(ma), card: ma.card }], this.extraAll || this.extra, { auto });
+       { mid: a, roster: ma.roster, tactics: ma.tactics, lineup: ma.lineup, arena: this.arenaOf(ma), card: ma.card }], this.extraAll || Object.assign({}, this.extra, this.boosted), { auto });
   }
 
   setTactics(mid, t) {
@@ -1123,13 +1278,14 @@ class Room {
       if (this.allReady()) { this.sys('Todos prontos! Bola ao alto.'); this.advance(now); }
       return;
     }
+    if (s.paused) return; // pausado pelo líder: nada anda (nem o intervalo entre os jogos)
     if (s.status === 'interval') {
       if (now >= s.intervalUntil) this.advance(now);
       return;
     }
     if (s.status !== 'playing') return;
     if (s.fast && !s.post) {
-      if (!s.paused && now - s.lastStep >= FAST_MS[this.settings.speed]) this.fastRound(now);
+      if (now - s.lastStep >= FAST_MS[this.settings.speed]) this.fastRound(now);
       return;
     }
     const stepMs = SPEED_MS[this.settings.speed];
@@ -1153,10 +1309,43 @@ class Room {
     if (s.matches.every((m) => m.done) && !s.matches.some((m) => m.hold && m.hold.until > now)) this.endRound(now);
   }
 
+  // pausa do líder: vale na temporada, no 82-0, no play-in e nos playoffs (jogos ao vivo e intervalos)
+  togglePauseSeason(mid, now) {
+    if (!this.isHost(mid) || this.phase !== 'season') return;
+    const s = this.season;
+    if (s.status === 'prep') return;
+    if (!s.paused) {
+      s.paused = true;
+      s.pausedAt = now;
+      this.sys('⏸ Jogo pausado pelo líder.');
+    } else this.resumeSeason(now);
+    this.touch();
+  }
+
+  resumeSeason(now) {
+    const s = this.season;
+    if (!s.paused) return;
+    // empurra todos os relógios pelo tempo que ficou parado
+    const shift = Math.max(0, now - (s.pausedAt || now));
+    s.paused = false;
+    s.pausedAt = 0;
+    if (s.intervalUntil) s.intervalUntil += shift;
+    if (s.lastStep) s.lastStep += shift;
+    for (const m of s.matches) {
+      if (m.hold) m.hold.until += shift;
+      if (m.challenge && m.challenge.deadline) m.challenge.deadline += shift;
+    }
+    this.sys('▶ Jogo retomado.');
+  }
+
+  // relógio da temporada: parado enquanto estiver pausado
+  seasonClock(now) { const s = this.season; return s && s.paused ? s.pausedAt : now; }
+
   skipRound(mid, now) {
     if (!this.isHost(mid) || this.phase !== 'season') return;
     const s = this.season;
-    if (s.fast && !s.post) { if (s.status === 'playing') s.paused = !s.paused; this.touch(); return; }
+    if (s.fast && !s.post) return this.togglePauseSeason(mid, now);
+    if (s.paused) this.resumeSeason(now);
     if (s.status === 'playing') {
       s.matches.forEach((m) => m.finish());
       this.endRound(now);
@@ -1363,7 +1552,9 @@ class Room {
     this.auction = null;
     this.season = null;
     this.end = null;
-    for (const m of this.managers) { m.budget = this.baseBudget(); m.roster = []; m.prices = {}; m.tactics = defaultTactics(); m.lineup = null; m.arena = null; m.card = null; m.pending = null; }
+    this.boosted = {};
+    this.extraAll = null;
+    for (const m of this.managers) { m.budget = this.baseBudget(); m.roster = []; m.prices = {}; m.tactics = defaultTactics(); m.lineup = null; m.arena = null; m.card = null; m.pending = null; m.boost = null; }
     this.ready = new Set();
     this.touch();
   }
@@ -1375,8 +1566,15 @@ class Room {
     else if (this.phase === 'arenas') { if (this.allReady()) this.beginDraw(now); }
     else if (this.phase === 'draw') this.updateDraw(now);
     else if (this.phase === 'cards') {
-      if (this.present().every((m) => m.card)) {
-        for (const m of this.managers) if (!m.card) m.card = this.botCard(m); // quem caiu recebe uma carta automática
+      if (this.present().every((m) => m.card && this.boostDone(m))) {
+        for (const m of this.managers) {
+          if (!m.card) m.card = this.botCard(m); // quem caiu recebe uma carta automática
+          if (!this.boostDone(m)) {
+            this.botBoost(m);
+            const b = m.boost;
+            if (b.pid !== 'nenhum') this.sys(`${D.BOOSTS[b.type].icon} ${m.name} usou ${D.BOOSTS[b.type].label} em ${this.player(b.pid).name} (automático).`);
+          }
+        }
         this.sys('Cartas escolhidas! Ajustem os times e cliquem em Pronto.');
         this.startSeason(now);
       }
@@ -1391,12 +1589,13 @@ class Room {
       code: this.code, phase: this.phase, hostId: this.hostId, settings: this.settings,
       managers: this.managers.map((m) => ({
         id: m.id, name: m.name, team: m.team, isBot: m.isBot, connected: m.connected,
-        budget: m.budget, roster: m.roster, prices: m.prices, tactics: m.tactics, lineup: m.lineup, arena: m.arena, pending: m.pending || null,
+        budget: m.budget, roster: m.roster, prices: m.prices, tactics: m.tactics, lineup: m.lineup, arena: m.arena, pending: m.pending || null, boost: m.boost || null,
         card: this.phase === 'cards' ? (m.card ? 'escolhida' : null) : m.card,
       })),
       ready: [...this.ready],
       budget: this.baseBudget(),
       extra: this.extra,
+      boosted: this.boosted,
     };
     if (this.phase === 'teampick' && this.teamPick) {
       const tp = this.teamPick;
@@ -1409,8 +1608,9 @@ class Room {
       const a = this.auction, lot = a.lot;
       st.auction = {
         lotNo: a.lotNo, total: a.total, left: a.queue.length, paused: a.paused, history: a.history.slice(0, 25),
+        boostNo: a.boostNo, boostTotal: a.boostTotal, boostLeft: a.boostQueue.length, playersStarted: !!a.playersStarted,
         lot: lot && {
-          pid: lot.pid, bid: lot.bid, leader: lot.leader, bids: lot.bids,
+          kind: lot.kind || 'player', boost: lot.boost || null, pid: lot.pid, bid: lot.bid, leader: lot.leader, bids: lot.bids,
           remainingMs: a.paused ? a.pausedLeft : Math.max(0, lot.endsAt - now),
           passed: [...lot.passed], result: lot.result, owner: lot.owner, price: lot.price, basePrice: lot.basePrice, discount: lot.discount,
         },
@@ -1418,6 +1618,7 @@ class Room {
     }
     if (this.season) {
       const s = this.season;
+      now = this.seasonClock(now);
       st.season = {
         stage: s.stage, status: s.status, label: s.label,
         intervalMs: s.status === 'interval' ? Math.max(0, s.intervalUntil - now) : 0,

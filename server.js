@@ -150,6 +150,7 @@ function startServer() {
     socket.on('place', act((d) => room.place(myId, d.slot)));
     socket.on('ready', act((d) => room.setReady(myId, !!d.ready)));
     socket.on('card', act((d) => room.chooseCard(myId, d.card)));
+    socket.on('applyBoost', act((d) => room.applyBoost(myId, d.pid, d.choice)));
     socket.on('useCard', act(() => room.useCard(myId)));
     socket.on('timeout', act((d, now) => room.callTimeout(myId, now)));
     if (process.env.DRAFT100_DEBUG) {
@@ -164,6 +165,7 @@ function startServer() {
     socket.on('lineup', act((d) => room.setLineup(myId, d)));
     socket.on('autoLineup', act(() => room.autoLineup(myId)));
     socket.on('skipRound', act((d, now) => room.skipRound(myId, now)));
+    socket.on('pauseSeason', act((d, now) => room.togglePauseSeason(myId, now)));
     socket.on('restart', act(() => room.restart(myId)));
     socket.on('chat', act((d) => room.chatMsg(myId, d.text)));
     socket.on('rename', act((d) => {

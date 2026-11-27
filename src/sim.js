@@ -61,8 +61,9 @@ const short = (name) => {
   return parts.length > 1 ? parts.slice(1).join(' ') : name;
 };
 
+// extra vem primeiro: lá estão os jogadores com carta de reforço (e os agentes livres e times de lendas)
 function getPlayer(id, extra) {
-  return PLAYERS[id] || (extra && extra[id]);
+  return (extra && extra[id]) || PLAYERS[id];
 }
 
 class Match {

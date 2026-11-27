@@ -56,6 +56,7 @@
   const esc = (s) => String(s == null ? '' : s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
   const CLONES = {};
   const P = (id) => {
+    if (S && S.boosted && S.boosted[id]) return S.boosted[id]; // com carta de reforço aplicada
     if (D.PLAYERS[id]) return D.PLAYERS[id];
     if (S && S.extra && S.extra[id]) return S.extra[id];
     if (typeof id === 'string' && id.startsWith('c:')) {
@@ -841,9 +842,11 @@
   function buildCards() {
     $('#screen').innerHTML = `
       <div class="draw-head">
-        <h1 class="display">Escolha sua carta</h1>
-        <p class="muted">Só dá para escolher uma, e não dá para trocar. Em cada jogo você pode ativar a carta uma vez, pela Prancheta. Se não ativar, ela entra sozinha nos 3 minutos finais do 4º quarto.</p>
+        <h1 class="display">Suas cartas</h1>
+        <p class="muted">Quem comprou carta de reforço no leilão aplica agora em um jogador. E todo mundo escolhe uma carta de jogo: em cada jogo você pode ativá-la uma vez, pela Prancheta (se não ativar, ela entra sozinha nos 3 minutos finais do 4º quarto). Nada disso dá para trocar depois.</p>
       </div>
+      <section class="panel boost-apply hidden" id="boostPanel" style="margin-bottom:18px"><div class="panel-h"><h3>Sua carta de reforço</h3><span class="muted small">aplique em um jogador do seu elenco · não dá para trocar</span></div><div class="panel-b" id="boostArea"></div></section>
+      <h3 class="tier-h display">Carta de jogo <span class="muted small">escolha uma</span></h3>
       <div class="cards-row" id="cardRow">${Object.keys(D.CARDS).map((k) => cardHTML(k)).join('')}</div>
       <div class="panel" style="margin-top:18px"><div class="panel-h"><h3>Quem já escolheu</h3></div><div class="panel-b" id="cardStatus"></div></div>
       <section class="panel ${SPEC ? 'hidden' : ''}" style="margin-top:16px"><div class="panel-h"><h3>Seu elenco</h3></div><div class="panel-b"><div class="roster" id="cardRoster"></div></div></section>`;
@@ -859,6 +862,77 @@
         updateCards();
       });
     };
+    boostSel = { pid: null, choice: null };
+    $('#boostArea').onclick = (e) => {
+      const pb = e.target.closest('[data-bpid]');
+      if (pb) { boostSel = { pid: pb.dataset.bpid, choice: null }; renderBoostArea(true); return; }
+      const cb = e.target.closest('[data-bchoice]');
+      if (cb) { boostSel.choice = cb.dataset.bchoice; renderBoostArea(true); return; }
+      if (e.target.closest('#boostApply')) {
+        const m = me();
+        const b = D.BOOSTS[m.boost.type];
+        const p = P(boostSel.pid);
+        askConfirm({ title: `${b.label} em ${p.name}?`, text: 'A carta vale para o jogo todo (temporada e playoffs) e não dá para trocar depois.', ok: 'Aplicar carta', icon: b.icon }).then((yes) => {
+          if (!yes) return;
+          socket.emit('applyBoost', { pid: boostSel.pid, choice: boostSel.choice }, (r) => { if (r && r.error) toast(r.error, true); else sfx.mine(); });
+        });
+      }
+    };
+  }
+
+  // ---------- carta de reforço: escolher o jogador ----------
+  let boostSel = { pid: null, choice: null };
+  let boostKey = '';
+  function boostPreviewHTML(p, q) {
+    const a = D.cardAttrs(p), b = D.cardAttrs(q);
+    const cell = (k) => {
+      const d = b[k] - a[k];
+      return `<div class="bp-a ${d ? 'up' : ''}"><span class="k">${D.CARD_ATTR_LABEL[k]}</span><span class="v">${b[k]}</span>${d ? `<span class="d">+${d}</span>` : ''}</div>`;
+    };
+    return `<div class="bp">
+      <div class="bp-h"><b>${esc(q.name)}</b> <span class="muted">overall</span> <b>${p.ovr}${q.ovr !== p.ovr ? ` → <span style="color:var(--green)">${q.ovr}</span>` : ''}</b>
+        · <span class="muted">posições</span> <b>${posStr(p)}${posStr(q) !== posStr(p) ? ` → <span style="color:var(--green)">${posStr(q)}</span>` : ''}</b></div>
+      <div class="pmeta traits">${traitsHTML(q, true)}</div>
+      <div class="bp-grid">${Object.keys(a).map(cell).join('')}</div>
+    </div>`;
+  }
+  function renderBoostArea(force) {
+    const m = me();
+    const panel = $('#boostPanel');
+    if (!panel) return;
+    panel.classList.toggle('hidden', !m || !m.boost || SPEC);
+    if (!m || !m.boost) return;
+    const b = D.BOOSTS[m.boost.type];
+    const key = JSON.stringify([m.boost, boostSel, m.roster]);
+    if (!force && key === boostKey) return;
+    boostKey = key;
+    const area = $('#boostArea');
+    if (m.boost.pid) {
+      const p = P(m.boost.pid);
+      area.innerHTML = m.boost.pid === 'nenhum' ? `<div class="empty-note">${b.icon} ${esc(b.label)}: nenhum jogador do seu elenco podia receber esta carta.</div>`
+        : `<div class="boost-done">✓ ${b.icon} <b>${esc(b.label)}</b> aplicada em <b>${esc(p.name)}</b>. ${boostBadge(p)}</div>`;
+      return;
+    }
+    const list = m.roster.map((id) => P(id)).sort((x, y) => y.ovr - x.ovr);
+    const sel = boostSel.pid && m.roster.includes(boostSel.pid) ? P(boostSel.pid) : null;
+    let opts = '', preview = '', can = false;
+    if (sel) {
+      if (b.choose === 'pos') {
+        const ps = D.boostPositions(sel);
+        opts = ps.length ? `<div class="bopts"><span class="muted small">Nova posição:</span>${ps.map((x) => `<button class="btn sm ${boostSel.choice === x ? 'primary' : ''}" data-bchoice="${x}">${x} · ${D.POS_LABELS[x]}</button>`).join('')}</div>` : '<div class="muted small">Ele já joga em todas as posições vizinhas.</div>';
+      } else if (b.choose === 'trait') {
+        const ts = D.boostTraits(sel);
+        opts = `<div class="bopts"><span class="muted small">Característica nova:</span>${ts.map((x) => `<button class="btn sm ${boostSel.choice === x ? 'primary' : ''}" data-bchoice="${x}">${D.TRAITS[x].icon} ${D.TRAITS[x].label}</button>`).join('')}</div>`;
+      }
+      const q = D.applyBoost(sel, m.boost.type, boostSel.choice);
+      if (q) { preview = boostPreviewHTML(sel, q); can = true; }
+      else if (!b.choose) preview = '<div class="muted small">Essa carta não serve para esse jogador.</div>';
+    }
+    area.innerHTML = `
+      <div class="boost-head"><span class="bh-icon">${b.icon}</span><div><div class="display" style="font-size:24px">${esc(b.label)}</div><div class="muted small">${esc(b.desc)}</div></div></div>
+      <div class="bpick">${list.map((p) => `<button class="bpl ${sel && sel.id === p.id ? 'sel' : ''}" data-bpid="${esc(p.id)}"><span class="o">${p.ovr}</span><span class="n">${mainTrait(p)} ${esc(p.name)}<small>${posStr(p)}</small></span></button>`).join('')}</div>
+      ${sel ? opts + preview : '<div class="muted small" style="margin-top:8px">Escolha o jogador que vai receber a carta para ver como ele fica.</div>'}
+      ${sel ? `<div style="margin-top:12px"><button class="btn green" id="boostApply" ${can ? '' : 'disabled'}>Aplicar ${esc(b.label)} em ${esc(sel.name)}</button></div>` : ''}`;
   }
   function updateCards() {
     const m = me();
@@ -868,9 +942,12 @@
       b.classList.toggle('sel', chosen && b.dataset.card === myCardChoice);
     });
     $('#cardStatus').innerHTML = `<div class="ready-list">${S.managers.map((x) => {
-      const ok = !!x.card || !x.connected;
-      return `<span class="rd ${ok ? 'ok' : ''}">${chip(x.team)} ${esc(x.name)} <i>${x.card ? '✓ escolheu' : !x.connected ? 'offline' : '… escolhendo'}</i></span>`;
+      const bOk = !x.boost || !!x.boost.pid;
+      const ok = (!!x.card && bOk) || !x.connected;
+      const bTxt = x.boost ? ` · ${D.BOOSTS[x.boost.type].icon} ${x.boost.pid ? (x.boost.pid === 'nenhum' ? 'sem uso' : esc(P(x.boost.pid).name)) : 'aplicando…'}` : '';
+      return `<span class="rd ${ok ? 'ok' : ''}">${chip(x.team)} ${esc(x.name)} <i>${x.card ? '✓ carta de jogo' : !x.connected ? 'offline' : '… escolhendo'}${bTxt}</i></span>`;
     }).join('')}</div>`;
+    renderBoostArea();
     if (m) $('#cardRoster').innerHTML = rosterHTML(m);
   }
 
@@ -986,7 +1063,7 @@
   }
 
   document.addEventListener('keydown', (e) => {
-    if (!S || S.phase !== 'auction' || SPEC || S.settings.pool === 'franquia') return;
+    if (!S || S.phase !== 'auction' || SPEC || (S.settings.pool === 'franquia' && !(S.auction && S.auction.lot && S.auction.lot.kind === 'boost'))) return;
     if (['INPUT', 'TEXTAREA', 'SELECT'].includes(document.activeElement.tagName)) return;
     const map = { '1': 1, '2': 2, '5': 5, '0': 10 };
     if (map[e.key]) {
@@ -1002,9 +1079,10 @@
     lot.dur = Math.max(st.settings.bidTime * 1000, L.remainingMs);
     const pl = prev && prev.auction && prev.auction.lot;
     // fui superado?
-    if (pl && pl.pid === L.pid && pl.leader === ME && L.leader && L.leader !== ME) sfx.outbid();
+    const lotId = (A, x) => (x.kind === 'boost' ? 'c' + A.boostNo : 'j' + A.lotNo);
+    if (pl && lotId(prev.auction, pl) === lotId(st.auction, L) && pl.leader === ME && L.leader && L.leader !== ME) sfx.outbid();
     if (L.result) {
-      const key = st.auction.lotNo + ':' + L.result.type;
+      const key = lotId(st.auction, L) + ':' + L.result.type;
       if (key !== lastResultKey) {
         lastResultKey = key;
         if (L.result.type === 'sold') (L.result.mid === ME ? sfx.mine : sfx.sold)();
@@ -1012,13 +1090,26 @@
     }
   }
 
+  // selos de MVP da temporada e MVP das Finais (o atributo principal vai a 100 / 99)
+  function seasonTxt(p) { return p.era === 'atual' ? (p.year - 1) + '-' + String(p.year).slice(2) : p.year; }
+  function awardBadges(p) {
+    const stat = D.MVP_STAT[(p.tags || '')[0]] || 'tudo';
+    const out = [];
+    if (p.mvp) out.push(`<div class="mvp-badge">🏆 MVP ${seasonTxt(p)} · ${stat} 100</div>`);
+    if (p.fmvp) out.push(`<div class="mvp-badge fmvp">🥇 MVP das Finais ${seasonTxt(p)}${p.mvp ? '' : ` · ${stat} 99`}</div>`);
+    return out.join(' ');
+  }
+  function boostBadge(p) {
+    if (!p.boost) return '';
+    const b = D.BOOSTS[p.boost.type];
+    const extra = p.boost.type === 'versatil' ? ` (agora ${posStr(p)})` : p.boost.type === 'dna' && D.TRAITS[p.boost.choice] ? ` (${D.TRAITS[p.boost.choice].label})` : p.boost.type === 'fundamentos' && p.boost.choice ? ` (${p.boost.choice.split(',').map((k) => D.CARD_ATTR_LABEL[k]).join(' e ')})` : '';
+    return `<div class="boost-badge">${b.icon} ${esc(b.label)}${esc(extra)}</div>`;
+  }
+  const attrCell = (label, v, extra = '') => `<div class="attr ${v >= 100 ? 'top100' : v >= 99 ? 'top99' : ''}"><div class="k">${label}</div><div class="v">${v}${extra}</div><div class="bar"><i style="width:${Math.max(4, Math.min(100, (v - 40) / 60 * 100))}%"></i></div></div>`;
   function playerCardHTML(p, L) {
-    const a0 = D.attrs(p);
-    const a = {
-      tres: a0.tres, media: a0.media, garrafao: Math.max(a0.infil, a0.post), passe: a0.passe, reb: a0.reb, def: Math.max(a0.defPer, a0.defAro),
-    };
+    const a = D.cardAttrs(p);
     const lenda = p.era === 'lenda';
-    const attr = (k, label) => { const v = Math.min(99, a[k]); return `<div class="attr"><div class="k">${label}</div><div class="v">${v}</div><div class="bar"><i style="width:${Math.max(4, (v - 40) / 59 * 100)}%"></i></div></div>`; };
+    const attr = (k, label) => attrCell(label, a[k]);
     const leader = L.leader ? M(L.leader) : null;
     let result = '';
     if (L.result) {
@@ -1039,7 +1130,7 @@
           <div class="pmeta">${(p.positions || [p.pos]).map((x) => `<span class="posb">${x}</span>`).join('')}<span class="muted small">${D.POS_LABELS[p.pos] || ''}</span>${lenda ? `<span class="tag lenda">LENDA${p.year ? ' · ' + p.year : ''}</span>` : ''}</div>
           <div class="pname">${esc(p.name)}</div>
           <div class="pmeta traits">${traitsHTML(p, true)}</div>
-          ${p.mvp ? `<div class="mvp-badge">🏆 MVP ${p.era === 'atual' ? (p.year - 1) + '-' + String(p.year).slice(2) : p.year} · bônus de +${D.MVP_BONUS} em ${D.MVP_STAT[(p.tags || '')[0]] || 'tudo'}</div>` : ''}
+          ${awardBadges(p)}${boostBadge(p)}
         </div>
         <div class="card-jersey">${jersey(p, 104)}</div>
       </div>
@@ -1056,17 +1147,63 @@
       ${result}`;
   }
 
+  // lote de carta de reforço (leilão antes dos jogadores)
+  function boostCardHTML(L) {
+    const b = D.BOOSTS[L.boost];
+    const leader = L.leader ? M(L.leader) : null;
+    let result = '';
+    if (L.result) {
+      const w = L.result.type === 'sold' ? M(L.result.mid) : null;
+      result = w
+        ? `<div class="result"><div><div class="stamp">VENDIDA!</div><div class="who">${chip(w.team)} ${esc(w.name)} por <span style="color:var(--green)">${money(L.result.price)}</span></div><div class="placing-note">A carta é aplicada num jogador depois do leilão.</div></div></div>`
+        : '<div class="result"><div><div class="stamp unsold">SEM LANCES</div><div class="who muted">Ninguém quis esta carta.</div></div></div>';
+    }
+    return `
+      <div class="boost-lot">
+        <div class="bl-icon">${b.icon}</div>
+        <div class="bl-body">
+          <div class="pmeta"><span class="tag lenda">CARTA DE REFORÇO</span><span class="muted small">uma por técnico · usada em um jogador do seu time</span></div>
+          <div class="pname">${esc(b.label)}</div>
+          <div class="bl-desc">${esc(b.desc)}</div>
+        </div>
+      </div>
+      <div class="bidrow">
+        <div class="curbid"><div class="k">${L.bid ? 'Maior lance' : 'Lance inicial'}</div><div class="v ${L.bid ? '' : 'none'}" id="curBidV">${L.bid ? money(L.bid) : 'US$ 1M'}</div></div>
+        <div class="leader">${leader ? `${chip(leader.team, 'lg')}<div><div>${esc(leader.name)}${leader.id === ME ? ' <span class="tag you">Você</span>' : ''}</div><div class="muted small">${L.bids} lance${L.bids > 1 ? 's' : ''}</div></div>` : '<span class="muted">Ninguém deu lance ainda</span>'}</div>
+      </div>
+      <div class="timer" id="timer"><i id="timerBar"></i></div>
+      <div class="timer-txt"><span id="timerTxt"></span><span>${S.auction.paused ? '⏸ PAUSADO' : ''}</span></div>
+      ${result}`;
+  }
+
   let lastCardKey = '';
   function updateAuction() {
     const A = S.auction;
     const L = A.lot;
     const m = me();
-    $('#lotInfo').textContent = `Lote ${A.lotNo}/${A.total}`;
-    $('#lotCount').innerHTML = `Jogador <b>${A.lotNo}</b> de <b>${A.total}</b> · ${A.left === 0 ? 'último lote' : `restam ${A.left}`}`;
-    $('#lotProg').style.width = (A.total ? (A.lotNo / A.total) * 100 : 0) + '%';
+    const isBoost = !!(L && L.kind === 'boost');
+    if (isBoost) {
+      $('#lotInfo').textContent = `Carta ${A.boostNo}/${A.boostTotal}`;
+      $('#lotCount').innerHTML = `🃏 Leilão de cartas de reforço · carta <b>${A.boostNo}</b> de <b>${A.boostTotal}</b> · depois vêm os ${A.total} jogadores`;
+      $('#lotProg').style.width = (A.boostTotal ? (A.boostNo / A.boostTotal) * 100 : 0) + '%';
+    } else {
+      $('#lotInfo').textContent = `Lote ${A.lotNo}/${A.total}`;
+      $('#lotCount').innerHTML = `Jogador <b>${A.lotNo}</b> de <b>${A.total}</b> · ${A.left === 0 ? 'último lote' : `restam ${A.left}`}`;
+      $('#lotProg').style.width = (A.total ? (A.lotNo / A.total) * 100 : 0) + '%';
+    }
     if (me() && $('#myArena').dataset.a !== me().arena) { $('#myArena').dataset.a = me().arena; $('#myArena').innerHTML = arenaCard(ARENA(me().arena), { compact: true }); }
     // card
-    if (L) {
+    if (L && isBoost) {
+      const key = ['boost' + A.boostNo, L.bid, L.leader, !!L.result, A.paused].join('|');
+      if (key !== lastCardKey) {
+        const bump = lastCardKey.split('|')[0] === 'boost' + A.boostNo && L.bid > 0;
+        lastCardKey = key;
+        const card = $('#card');
+        card.className = 'card boostcard';
+        card.innerHTML = boostCardHTML(L);
+        if (bump && $('#curBidV')) $('#curBidV').classList.add('bump');
+      }
+    } else if (L) {
       const p = P(L.pid);
       const key = [L.pid, L.bid, L.leader, !!L.result, A.paused, S.managers.map((x) => x.pending || '').join(',')].join('|');
       if (key !== lastCardKey) {
@@ -1082,7 +1219,7 @@
     }
 
     // controles de lance
-    const fr = S.settings.pool === 'franquia';
+    const fr = S.settings.pool === 'franquia' && !isBoost;
     $('#frBox').classList.toggle('hidden', !fr);
     $('#quick').classList.toggle('hidden', fr);
     $('#bidbox .row').classList.toggle('hidden', fr);
@@ -1103,10 +1240,12 @@
     }
     if (!fr && m && L) {
       const slots = S.settings.rosterSize - m.roster.length;
-      const maxBid = Math.max(0, m.budget - (slots - 1));
+      // na carta, guarda US$ 1M para cada vaga do elenco que ainda vai montar
+      const maxBid = isBoost ? Math.max(0, m.budget - slots) : Math.max(0, m.budget - (slots - 1));
       const amLeader = L.leader === ME;
       const passed = (L.passed || []).includes(ME);
-      const blocked = !!L.result || A.paused || slots <= 0 || amLeader || passed;
+      const done = isBoost ? !!m.boost : slots <= 0;
+      const blocked = !!L.result || A.paused || done || amLeader || passed;
       document.querySelectorAll('#quick [data-inc]').forEach((b) => {
         const amt = L.bid + Number(b.dataset.inc);
         b.dataset.amount = amt;
@@ -1119,7 +1258,11 @@
       pb.disabled = blocked || passed;
       pb.textContent = passed ? 'Você passou' : 'Passar';
       let note;
-      if (slots <= 0) note = '<b>Elenco completo!</b> Agora é só acompanhar.';
+      if (isBoost && m.boost) note = `<b>Você já tem a sua carta</b> (${D.BOOSTS[m.boost.type].icon} ${esc(D.BOOSTS[m.boost.type].label)}). Só uma por técnico.`;
+      else if (isBoost && amLeader) note = '<b style="color:var(--green)">Você está ganhando esta carta.</b>';
+      else if (isBoost && passed) note = '<b>Você passou nesta carta.</b>';
+      else if (isBoost) note = `Lance máximo na carta: <b>${money(maxBid)}</b> (o dinheiro sai do caixa do leilão de jogadores; guarde US$ 1M por vaga). Só dá para levar uma carta.`;
+      else if (slots <= 0) note = '<b>Elenco completo!</b> Agora é só acompanhar.';
       else if (amLeader) note = '<b style="color:var(--green)">Você está ganhando este lote.</b>';
       else if (passed) note = '<b>Você passou neste jogador</b> e não pode mais dar lance nele.';
       else note = `Seu lance máximo: <b>${money(maxBid)}</b> · ${slots} vaga${slots > 1 ? 's' : ''} aberta${slots > 1 ? 's' : ''}. <span class="kbd-hint">Atalhos: <span class="kbd">1</span> <span class="kbd">2</span> <span class="kbd">5</span> <span class="kbd">0</span> (+10) e <span class="kbd">P</span> para passar.</span>`;
@@ -1134,7 +1277,7 @@
       const lead = L && L.leader === x.id;
       const passed = L && (L.passed || []).includes(x.id);
       return `<div class="mini-mgr ${lead ? 'lead' : ''} ${x.id === ME ? 'me' : ''}">
-        ${chip(x.team)}<div class="nm">${esc(x.name)}</div><div class="money">${money(x.budget)}</div>
+        ${chip(x.team)}<div class="nm">${esc(x.name)}${x.boost ? ` <span title="${esc(D.BOOSTS[x.boost.type].label)}">${D.BOOSTS[x.boost.type].icon}</span>` : ''}</div><div class="money">${money(x.budget)}</div>
         <div class="sub"><span class="dots">${Array.from({ length: size }, (_, i) => `<i class="${i < filled ? 'f' : ''}"></i>`).join('')}</span>
         ${lead ? '<span style="color:var(--green);font-weight:700">na frente</span>' : passed ? '<span>passou</span>' : ''}
         ${x.isBot ? '<span class="tag bot">Bot</span>' : !x.connected ? '<span class="tag off">Offline</span>' : ''}</div>
@@ -1163,6 +1306,12 @@
 
     // histórico
     $('#hist').innerHTML = A.history.length ? A.history.map((h) => {
+      if (h.boost) {
+        const b = D.BOOSTS[h.boost];
+        return h.mid
+          ? `<div class="h">${mchip(h.mid)}<span class="n">${b.icon} ${esc(b.label)}</span><span class="p">${money(h.price)}</span></div>`
+          : `<div class="h u"><span class="tchip" style="background:#333">—</span><span class="n">${b.icon} ${esc(b.label)}</span><span class="small">sem lance</span></div>`;
+      }
       const p = P(h.pid);
       return h.mid
         ? `<div class="h">${mchip(h.mid)}<span class="n">${esc(p.name)} <span class="muted small">${p.ovr}</span></span><span class="p">${money(h.price)}</span></div>`
@@ -1172,7 +1321,7 @@
 
   function rosterHTML(m) {
     return m.roster.map((id) => P(id)).sort((a, b) => b.ovr - a.ovr).map((p) => `
-      <div class="rp"><span class="o">${p.ovr}</span><span class="n">${mainTrait(p)} ${esc(p.name)}${p.mvp ? ' 🏆' : ''}<small>${posStr(p)}</small></span><span class="p">${m.prices[p.id] ? money(m.prices[p.id]) : 'grátis'}</span></div>`).join('');
+      <div class="rp"><span class="o">${p.ovr}</span><span class="n">${mainTrait(p)} ${esc(p.name)}${p.mvp ? ' 🏆' : ''}${p.fmvp ? ' 🥇' : ''}${p.boost ? ' ' + D.BOOSTS[p.boost.type].icon : ''}<small>${posStr(p)}</small></span><span class="p">${m.prices[p.id] ? money(m.prices[p.id]) : 'grátis'}</span></div>`).join('');
   }
 
   // animação do cronômetro
@@ -1187,7 +1336,7 @@
         bar.style.width = pct + '%';
         tm.className = 'timer' + (left < 2500 ? ' crit' : left < 5000 ? ' warn' : '');
         const sec = Math.ceil(left / 1000);
-        txt.textContent = L.result ? 'Próximo jogador…' : `${sec}s`;
+        txt.textContent = L.result ? (L.kind === 'boost' ? 'Próximo lote…' : 'Próximo jogador…') : `${sec}s`;
         if (!L.result && !S.auction.paused && sec <= 3 && sec > 0 && sec !== lastSec) sfx.tick();
         lastSec = sec;
       }
@@ -1195,7 +1344,7 @@
     if (S && S.phase === 'draw') tickDraw();
     if (S && S.phase === 'teampick') tickPick();
     if (S && S.phase === 'season') tickLive();
-    if (S && S.phase === 'season' && S.season.status === 'interval') {
+    if (S && S.phase === 'season' && S.season.status === 'interval' && !S.season.paused) {
       const c = $('#intCount');
       if (c) c.textContent = Math.max(0, Math.ceil((seasonIntervalEnds - performance.now()) / 1000));
     }
@@ -1209,7 +1358,7 @@
 
   function buildSeason() {
     $('#screen').innerHTML = `
-      <div class="panel stagebar"><h2 id="stLabel"></h2><span id="stInfo" class="muted small"></span><button class="btn sm hidden" id="skipRound"></button></div>
+      <div class="panel stagebar"><h2 id="stLabel"></h2><span id="stInfo" class="muted small"></span><button class="btn sm hidden" id="pauseSeason"></button><button class="btn sm hidden" id="skipRound"></button></div>
       <div class="season ${SPEC ? 'spec' : ''}">
         <aside class="side season-left">
           <section class="panel"><div class="panel-h"><h3 id="tickerTitle">Jogos da rodada</h3></div><div class="panel-b"><div id="ticker" class="ticker"></div></div></section>
@@ -1252,6 +1401,7 @@
       </div>
       <div id="clutch" class="clutch-ov hidden"></div>`;
     $('#skipRound').onclick = () => socket.emit('skipRound');
+    $('#pauseSeason').onclick = () => socket.emit('pauseSeason');
     $('#ticker').onclick = (e) => {
       const b = e.target.closest('[data-game]');
       if (!b) return;
@@ -1420,6 +1570,7 @@
   }
   // cronômetros que andam entre um envio e outro do servidor
   function tickLive() {
+    if (S.season && S.season.paused) return; // pausado: os cronômetros ficam parados
     const mm = myMatch();
     if (mm && mm.ch && mm.rx != null) {
       const bar = $('#clBar');
@@ -1539,6 +1690,12 @@
     const sk = $('#skipRound');
     sk.classList.toggle('hidden', !isHost() || s.status === 'prep');
     sk.textContent = s.fast && !s.post ? (s.paused ? '▶ Continuar' : '⏸ Pausar') : s.status === 'playing' ? '⏩ Simular rodada até o fim' : '▶ Começar próxima agora';
+    // pausa do líder nos jogos ao vivo, nos intervalos, no play-in e nos playoffs (no 82-0 regular o botão acima já pausa)
+    const ps = $('#pauseSeason');
+    ps.classList.toggle('hidden', !isHost() || s.status === 'prep' || (s.fast && !s.post));
+    ps.textContent = s.paused ? '▶ Continuar' : '⏸ Pausar';
+    ps.classList.toggle('primary', !!s.paused);
+    if (s.paused) $('#stInfo').textContent = '⏸ PAUSADO pelo líder';
     if (s.fast && !s.post) {
       $('#stInfo').textContent = `Rodada ${Math.min(s.round, s.totalRounds)}/${s.totalRounds}`;
       renderFast();
@@ -1566,7 +1723,7 @@
     renderBracket();
     renderLeaders();
     renderClutch();
-    if (s.post) { renderFast(); $('#stInfo').textContent = s.post.phase === 'playin' ? 'Play-in' : 'Playoffs'; }
+    if (s.post) { renderFast(); $('#stInfo').textContent = s.paused ? '⏸ PAUSADO pelo líder' : s.post.phase === 'playin' ? 'Play-in' : 'Playoffs'; }
   }
 
   function renderTactics(force) {
