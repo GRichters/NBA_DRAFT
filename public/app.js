@@ -853,6 +853,7 @@
     </button>`;
   }
   function buildCards() {
+    myCardChoice = null; // nova partida: a escolha da partida anterior não vale mais
     $('#screen').innerHTML = `
       <div class="draw-head">
         <h1 class="display">Suas cartas</h1>
@@ -869,9 +870,12 @@
       const c = D.CARDS[b.dataset.card];
       const pick = b.dataset.card;
       askConfirm({ title: `Carta ${c.label}`, text: `${c.desc || ''}<br><br>Escolher esta carta? Não dá para trocar depois.`, ok: 'Escolher carta', icon: c.icon }).then((yes) => {
-        if (!yes || myCardChoice) return;
+        const m = me();
+        if (!yes || !m || m.card) return; // vale o que o servidor diz (não o que sobrou de uma partida anterior)
         myCardChoice = pick;
-        socket.emit('card', { card: pick });
+        socket.emit('card', { card: pick }, (r) => {
+          if (r && r.error) { myCardChoice = null; toast(r.error, true); updateCards(); }
+        });
         updateCards();
       });
     };
@@ -1393,6 +1397,9 @@
   const RITMO_OPTS = [['lento', 'Cadenciado'], ['normal', 'Normal'], ['rapido', 'Acelerado']];
 
   function buildSeason() {
+    // nova temporada: esquece escolhas da partida anterior (os ids dos jogos se repetem entre partidas)
+    for (const k of Object.keys(clutchPicked)) delete clutchPicked[k];
+    courtSel = null;
     $('#screen').innerHTML = `
       <div class="panel stagebar"><h2 id="stLabel"></h2><span id="stInfo" class="muted small"></span><button class="btn sm hidden" id="pauseSeason"></button><button class="btn sm hidden" id="skipRound"></button></div>
       <div class="season ${SPEC ? 'spec' : ''}">

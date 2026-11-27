@@ -932,9 +932,12 @@ class Room {
 
   chooseCard(mid, card) {
     const m = this.mgr(mid);
-    if (!m || this.phase !== 'cards' || m.card || !D.CARDS[card]) return;
+    if (!m || this.phase !== 'cards') return { error: 'Não é hora de escolher a carta.' };
+    if (m.card) return { error: 'Você já escolheu a sua carta.' };
+    if (!D.CARDS[card]) return { error: 'Carta inválida.' };
     m.card = card;
     this.touch();
+    return { ok: true };
   }
 
   useCard(mid) {
