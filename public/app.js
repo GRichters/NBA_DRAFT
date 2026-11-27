@@ -1467,7 +1467,7 @@
   function renderTimeoutBox() {
     const box = $('#timeoutBox');
     if (!box || !S.season) return;
-    $('#timeoutWrap').classList.toggle('hidden', !!S.season.fast);
+    $('#timeoutWrap').classList.toggle('hidden', !!S.season.fast && !S.season.post); // 82-0: tempo só no play-in e playoffs (ao vivo)
     const mm = myMatch();
     const ti = mm ? mm.teams.indexOf(ME) : -1;
     const live = !!(mm && !mm.done && S.season.status === 'playing');
@@ -1789,7 +1789,7 @@
     }
     box.dataset.k = key;
     let action;
-    if (state === 'off') action = S.season.fast ? '<span class="muted small">No 82-0 a carta ativa sozinha nos 3 minutos finais de cada jogo.</span>' : '<span class="muted small">Você ativa durante o seu jogo (uma vez por jogo).</span>';
+    if (state === 'off') action = S.season.fast && !S.season.post ? '<span class="muted small">No 82-0 a carta ativa sozinha nos 3 minutos finais de cada jogo.</span>' : '<span class="muted small">Você ativa durante o seu jogo (uma vez por jogo).</span>';
     else if (state === 'active') action = `<b class="card-on">ATIVA · <span id="cardLeft">${fmtLeft(st.left)}</span> restantes</b>`;
     else if (state === 'used') action = '<span class="muted small">Já usada neste jogo.</span>';
     else action = `<button class="btn primary" id="useCardBtn">Ativar ${c.label}</button><span class="muted small">Se não usar, ativa sozinha nos 3 min finais.</span>`;

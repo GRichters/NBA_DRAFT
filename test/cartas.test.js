@@ -155,3 +155,33 @@ test('o líder consegue pausar os playoffs do 82-0', () => {
     runUntil(room, clock, () => room.phase === 'end');
   } finally { clock.restore(); }
 });
+
+test('82-0: pedido de tempo e carta funcionam nos jogos ao vivo do play-in/playoffs', () => {
+  const clock = useFakeClock();
+  try {
+    const room = new Room('TEMPO', fakeIo());
+    const sock = fakeSocket();
+    const { id } = room.join(sock, 'Chiquinho', 'tok-c');
+    room.setSettings(id, { pool: 'atual', format: 'oitenta', speed: 'rapido' });
+    room.addBot(id);
+    room.start(id);
+    room.disconnect(sock.id); // os bots fazem leilão e cartas por ele
+    runUntil(room, clock, () => room.phase === 'season' && room.season.started);
+    room.join(fakeSocket(), 'Chiquinho', 'tok-c');
+    // temporada regular é simulada: não tem pedido de tempo
+    assert.ok(room.callTimeout(id, clock.now()).error);
+    room.debugSkip82(id, clock.now()); // termina a temporada com o time dele bem colocado
+    runUntil(room, clock, () => !!room.myLiveMatch(id) && room.myLiveMatch(id).q === 1);
+    const match = room.myLiveMatch(id);
+    const ti = match.teams.findIndex((t) => t.mid === id);
+    const r = room.callTimeout(id, clock.now());
+    assert.ok(r.ok, r.error);
+    assert.equal(match.timeouts[ti], 0);
+    assert.equal(match.hold.kind, 'timeout');
+    assert.ok(room.callTimeout(id, clock.now()).error, 'só um por jogo');
+    // a carta também pode ser ativada na mão
+    runUntil(room, clock, () => !match.hold || match.hold.until <= clock.now());
+    const c = room.useCard(id);
+    assert.ok(c.ok, c.error);
+  } finally { clock.restore(); }
+});

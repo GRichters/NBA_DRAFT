@@ -917,9 +917,10 @@ class Room {
     return { ok: true };
   }
 
+  // jogo ao vivo do técnico (no 82-0, só no play-in e nos playoffs: a temporada regular é simulada)
   myLiveMatch(mid) {
     const s = this.season;
-    if (!s || s.status !== 'playing' || s.fast) return null;
+    if (!s || s.status !== 'playing' || (s.fast && !s.post)) return null;
     return s.matches.find((x) => !x.done && x.teams.some((t) => t.mid === mid)) || null;
   }
 
